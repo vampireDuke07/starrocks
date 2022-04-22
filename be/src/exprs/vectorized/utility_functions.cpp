@@ -16,12 +16,8 @@
 #include "column/column_viewer.h"
 #include "column/vectorized_fwd.h"
 #include "common/config.h"
-<<<<<<< HEAD
 #include "gen_cpp/version.h"
-=======
-#include "common/version.h"
 #include "gutil/casts.h"
->>>>>>> d5dc7dcd (optimize uuid() implements (#5109))
 #include "runtime/primitive_type.h"
 #include "runtime/runtime_state.h"
 #include "service/backend_options.h"
