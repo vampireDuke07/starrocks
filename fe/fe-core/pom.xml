@@ -36,7 +36,7 @@ under the License.
 
     <properties>
         <starrocks.home>${basedir}/../../</starrocks.home>
-        <fe_ut_parallel>${env.FE_UT_PARALLEL}</fe_ut_parallel>
+        <fe_ut_parallel>1</fe_ut_parallel>
         <jacoco.version>0.8.5</jacoco.version>
         <starrocks.thrift>thrift</starrocks.thrift>
         <iceberg.version>0.12.1</iceberg.version>

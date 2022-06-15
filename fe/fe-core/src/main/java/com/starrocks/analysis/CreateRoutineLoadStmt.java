@@ -38,6 +38,7 @@ import com.starrocks.common.util.Util;
 import com.starrocks.load.RoutineLoadDesc;
 import com.starrocks.load.routineload.KafkaProgress;
 import com.starrocks.load.routineload.LoadDataSourceType;
+import com.starrocks.load.routineload.PulsarProgress;
 import com.starrocks.load.routineload.RoutineLoadJob;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.OriginStatement;
@@ -118,6 +119,14 @@ public class CreateRoutineLoadStmt extends DdlStmt {
     public static final String KAFKA_OFFSETS_PROPERTY = "kafka_offsets";
     public static final String KAFKA_DEFAULT_OFFSETS = "kafka_default_offsets";
 
+    // pulsar type properties
+    public static final String PULSAR_BROKER_LIST_PROPERTY = "pulsar_broker_list";
+    public static final String PULSAR_TOPIC_PROPERTY = "pulsar_topic";
+    // optional
+    public static final String PULSAR_PARTITIONS_PROPERTY = "pulsar_partitions";
+    public static final String PULSAR_OFFSETS_PROPERTY = "pulsar_offsets";
+    public static final String PULSAR_DEFAULT_OFFSETS = "pulsar_default_offsets";
+
     private static final String NAME_TYPE = "ROUTINE LOAD NAME";
     private static final String ENDPOINT_REGEX = "[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]";
 
@@ -141,6 +150,13 @@ public class CreateRoutineLoadStmt extends DdlStmt {
             .add(KAFKA_TOPIC_PROPERTY)
             .add(KAFKA_PARTITIONS_PROPERTY)
             .add(KAFKA_OFFSETS_PROPERTY)
+            .build();
+
+    private static final ImmutableSet<String> PULSAR_PROPERTIES_SET = new ImmutableSet.Builder<String>()
+            .add()
+            .add()
+            .add()
+            .add()
             .build();
 
     private final LabelName labelName;
@@ -175,12 +191,19 @@ public class CreateRoutineLoadStmt extends DdlStmt {
 
     // kafka related properties
     private String kafkaBrokerList;
+    private String pulsarBrokerList;
     private String kafkaTopic;
+    private String pulsarTopic;
     // pair<partition id, offset>
     private List<Pair<Integer, Long>> kafkaPartitionOffsets = Lists.newArrayList();
+    // pair<partition id, offset>
+    private List<Pair<Integer, Long>> pulsarPartitionOffsets = Lists.newArrayList();
 
     // custom kafka property map<key, value>
     private Map<String, String> customKafkaProperties = Maps.newHashMap();
+
+    // custom pulsar property map<key, value>
+    private Map<String, String> customPulsarProperties = Maps.newHashMap();
 
     public static final Predicate<Long> DESIRED_CONCURRENT_NUMBER_PRED = (v) -> v > 0L;
     public static final Predicate<Long> MAX_ERROR_NUMBER_PRED = (v) -> v >= 0L;
@@ -266,16 +289,32 @@ public class CreateRoutineLoadStmt extends DdlStmt {
         return kafkaBrokerList;
     }
 
+    public String getPulsarBrokerList() {
+        return pulsarBrokerList;
+    }
+
     public String getKafkaTopic() {
         return kafkaTopic;
+    }
+
+    public String getPulsarTopic() {
+        return pulsarTopic;
     }
 
     public List<Pair<Integer, Long>> getKafkaPartitionOffsets() {
         return kafkaPartitionOffsets;
     }
 
+    public List<Pair<Integer, Long>> getPulsarPartitionOffsets() {
+        return pulsarPartitionOffsets;
+    }
+
     public Map<String, String> getCustomKafkaProperties() {
         return customKafkaProperties;
+    }
+
+    public Map<String, String> getCustomPulsarProperties() {
+        return customPulsarProperties;
     }
 
     public List<ParseNode> getLoadPropertyList() {
@@ -448,6 +487,8 @@ public class CreateRoutineLoadStmt extends DdlStmt {
             case KAFKA:
                 checkKafkaProperties();
                 break;
+            case PULSAR:
+                checkPulsarProperties();
             default:
                 break;
         }
@@ -497,6 +538,50 @@ public class CreateRoutineLoadStmt extends DdlStmt {
         }
     }
 
+    private void checkPulsarProperties() throws AnalysisException {
+        Optional<String> optional = dataSourceProperties.keySet().stream()
+                .filter(entity -> !PULSAR_PROPERTIES_SET.contains(entity))
+                .filter(entity -> !entity.startsWith("property.")).findFirst();
+        if (optional.isPresent()) {
+            throw new AnalysisException(optional.get() + " is invalid pulsar custom property");
+        }
+
+        // check broker list
+        pulsarBrokerList = Strings.nullToEmpty(dataSourceProperties.get(PULSAR_BROKER_LIST_PROPERTY)).replaceAll(" ", "");
+        if (Strings.isNullOrEmpty(pulsarBrokerList)) {
+            throw new AnalysisException(PULSAR_BROKER_LIST_PROPERTY + " is a required property");
+        }
+        String[] pulsarBrokerList = this.pulsarBrokerList.split(",");
+        for (String broker : pulsarBrokerList) {
+            if (!Pattern.matches(ENDPOINT_REGEX, broker)) {
+                throw new AnalysisException(PULSAR_BROKER_LIST_PROPERTY + ":" + broker
+                        + " not match pattern " + ENDPOINT_REGEX);
+            }
+        }
+
+        // check topic
+        pulsarTopic = Strings.nullToEmpty(dataSourceProperties.get(PULSAR_TOPIC_PROPERTY)).replaceAll(" ", "");
+        if (Strings.isNullOrEmpty(pulsarTopic)) {
+            throw new AnalysisException(PULSAR_TOPIC_PROPERTY + " is a required property");
+        }
+
+        // check custom kafka property before check partitions,
+        // because partitions can use kafka_default_offsets property
+        analyzeCustomProperties(dataSourceProperties, customPulsarProperties);
+
+        // check partitions
+        String pulsarPartitionsString = dataSourceProperties.get(PULSAR_PARTITIONS_PROPERTY);
+        if (pulsarPartitionsString != null) {
+            analyzeKafkaPartitionProperty(pulsarPartitionsString, customPulsarProperties, pulsarPartitionOffsets);
+        }
+
+        // check offset
+        String pulsarOffsetsString = dataSourceProperties.get(PULSAR_OFFSETS_PROPERTY);
+        if (pulsarOffsetsString != null) {
+            analyzeKafkaOffsetProperty(pulsarOffsetsString, pulsarPartitionOffsets);
+        }
+    }
+
     public static void analyzeKafkaPartitionProperty(String kafkaPartitionsString,
                                                      Map<String, String> customKafkaProperties,
                                                      List<Pair<Integer, Long>> kafkaPartitionOffsets)
@@ -525,6 +610,35 @@ public class CreateRoutineLoadStmt extends DdlStmt {
         }
     }
 
+    public static void analyzePulsarPartitionProperty(String pulsarPartitionsString,
+                                                      Map<String, String> customPulsarProperties,
+                                                      List<Pair<Integer, Long>> pulsarPartitionOffsets)
+            throws AnalysisException {
+        pulsarPartitionsString = pulsarPartitionsString.replaceAll(" ", "");
+        if (pulsarPartitionsString.isEmpty()) {
+            throw new AnalysisException(PULSAR_PARTITIONS_PROPERTY + " could not be a empty string");
+        }
+
+        // get pulsar default offset if set
+        Long pulsarDefaultOffset = null;
+        if (customPulsarProperties.containsKey(PULSAR_DEFAULT_OFFSETS)) {
+            pulsarDefaultOffset = getPulsarOffset(customPulsarProperties.get(PULSAR_DEFAULT_OFFSETS));
+        }
+
+        String[] pulsarPartitionsStringList = pulsarPartitionsString.split(",");
+        for (String s : pulsarPartitionsStringList) {
+            try {
+                pulsarPartitionOffsets.add(
+                        Pair.create(getIntegerValueFromString(s, PULSAR_PARTITIONS_PROPERTY),
+                                pulsarDefaultOffset == null ? PulsarProgress.OFFSET_END_VAL : pulsarDefaultOffset));
+            } catch (AnalysisException e) {
+                throw new AnalysisException(PULSAR_PARTITIONS_PROPERTY
+                        + " must be a number string with comma-separated");
+            }
+        }
+    }
+
+
     public static void analyzeKafkaOffsetProperty(String kafkaOffsetsString,
                                                   List<Pair<Integer, Long>> kafkaPartitionOffsets)
             throws AnalysisException {
@@ -539,6 +653,23 @@ public class CreateRoutineLoadStmt extends DdlStmt {
 
         for (int i = 0; i < kafkaOffsetsStringList.length; i++) {
             kafkaPartitionOffsets.get(i).second = getKafkaOffset(kafkaOffsetsStringList[i]);
+        }
+    }
+
+    public static void analyzePulsarOffsetProperty(String pulsarOffsetsString,
+                                                   List<Pair<Integer, Long>> pulsarPartitionOffsets)
+            throws AnalysisException {
+        pulsarOffsetsString = pulsarOffsetsString.replaceAll(" ", "");
+        if (pulsarOffsetsString.isEmpty()) {
+            throw new AnalysisException(PULSAR_OFFSETS_PROPERTY + " could not be a empty string");
+        }
+        String[] pulsarOffsetsStringList = pulsarOffsetsString.split(",");
+        if (pulsarOffsetsStringList.length != pulsarPartitionOffsets.size()) {
+            throw new AnalysisException("Partitions number should be equals to offsets number");
+        }
+
+        for (int i = 0; i < pulsarOffsetsStringList.length; i++) {
+            pulsarPartitionOffsets.get(i).second = getKafkaOffset(pulsarOffsetsStringList[i]);
         }
     }
 
@@ -565,6 +696,29 @@ public class CreateRoutineLoadStmt extends DdlStmt {
         return offset;
     }
 
+    // Get pulsar offset from string
+    // defined in librdpulsar/rdpulsarcpp.h
+    // OFFSET_BEGINNING: -2
+    // OFFSET_END: -1
+    public static long getPulsarOffset(String offsetStr) throws AnalysisException {
+        long offset = -1;
+        try {
+            offset = getLongValueFromString(offsetStr, "pulsar offset");
+            if (offset < 0) {
+                throw new AnalysisException("Can not specify offset smaller than 0");
+            }
+        } catch (AnalysisException e) {
+            if (offsetStr.equalsIgnoreCase(PulsarProgress.OFFSET_BEGINNING)) {
+                offset = PulsarProgress.OFFSET_BEGINNING_VAL;
+            } else if (offsetStr.equalsIgnoreCase(PulsarProgress.OFFSET_END)) {
+                offset = PulsarProgress.OFFSET_END_VAL;
+            } else {
+                throw e;
+            }
+        }
+        return offset;
+    }
+
     public static void analyzeCustomProperties(Map<String, String> dataSourceProperties,
                                                Map<String, String> customKafkaProperties) throws AnalysisException {
         for (Map.Entry<String, String> dataSourceProperty : dataSourceProperties.entrySet()) {
@@ -583,6 +737,27 @@ public class CreateRoutineLoadStmt extends DdlStmt {
         // check kafka_default_offsets
         if (customKafkaProperties.containsKey(KAFKA_DEFAULT_OFFSETS)) {
             getKafkaOffset(customKafkaProperties.get(KAFKA_DEFAULT_OFFSETS));
+        }
+    }
+
+    public static void analyzeCustomPropertiesPulsar(Map<String, String> dataSourceProperties,
+                                                     Map<String, String> customPulsarProperties) throws AnalysisException {
+        for (Map.Entry<String, String> dataSourceProperty : dataSourceProperties.entrySet()) {
+            if (dataSourceProperty.getKey().startsWith("property.")) {
+                String propertyKey = dataSourceProperty.getKey();
+                String propertyValue = dataSourceProperty.getValue();
+                String propertyValueArr[] = propertyKey.split("\\.");
+                if (propertyValueArr.length < 2) {
+                    throw new AnalysisException("pulsar property value could not be a empty string");
+                }
+                customPulsarProperties.put(propertyKey.substring(propertyKey.indexOf(".") + 1), propertyValue);
+            }
+            // can be extended in the future which other prefix
+        }
+
+        // check pulsar_default_offsets
+        if (customPulsarProperties.containsKey(PULSAR_DEFAULT_OFFSETS)) {
+            getPulsarOffset(customPulsarProperties.get(PULSAR_DEFAULT_OFFSETS));
         }
     }
 
