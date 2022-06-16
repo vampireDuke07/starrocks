@@ -66,10 +66,10 @@ public class PulsarUtil {
     }
 
     //todo PKafkaOffsetProxyResult to PPulsarOffsetProxyResult
-//    public static List<PPulsarOffsetProxyResult> getBatchOffsets(List<PPulsarOffsetProxyResult> requests)
-//            throws UserException {
-//        return proxyApi.getBatchOffsets(requests);
-//    }
+    public static List<PPulsarOffsetProxyResult> getBatchOffsets(List<PPulsarOffsetProxyResult> requests)
+            throws UserException {
+        return proxyApi.getBatchOffsets(requests);
+    }
 
     //todo PKafkaLoadInfo to PPulsarLoadInfo
     public static PPulsarLoadInfo genPPulsarLoadInfo(String brokerList, String topic,

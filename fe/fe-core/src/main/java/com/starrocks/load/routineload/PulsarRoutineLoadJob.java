@@ -32,9 +32,23 @@ import com.starrocks.analysis.CreateRoutineLoadStmt;
 import com.starrocks.analysis.RoutineLoadDataSourceProperties;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.Table;
-import com.starrocks.common.*;
+import com.starrocks.common.AnalysisException;
+import com.starrocks.common.Config;
+import com.starrocks.common.DdlException;
+import com.starrocks.common.ErrorCode;
+import com.starrocks.common.ErrorReport;
+import com.starrocks.common.FeMetaVersion;
+import com.starrocks.common.InternalErrorCode;
+import com.starrocks.common.LoadException;
+import com.starrocks.common.MetaNotFoundException;
+import com.starrocks.common.Pair;
+import com.starrocks.common.UserException;
 import com.starrocks.common.io.Text;
-import com.starrocks.common.util.*;
+import com.starrocks.common.util.DebugUtil;
+import com.starrocks.common.util.LogBuilder;
+import com.starrocks.common.util.LogKey;
+import com.starrocks.common.util.PulsarUtil;
+import com.starrocks.common.util.SmallFileMgr;
 import com.starrocks.common.util.SmallFileMgr.SmallFile;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.system.SystemInfoService;
@@ -46,7 +60,11 @@ import org.apache.logging.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * PulsarRoutineLoadJob is a kind of RoutineLoadJob which fetch data from pulsar.

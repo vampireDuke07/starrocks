@@ -31,6 +31,7 @@ import com.starrocks.common.MetaNotFoundException;
 import com.starrocks.common.UserException;
 import com.starrocks.common.util.DebugUtil;
 import com.starrocks.common.util.KafkaUtil;
+import com.starrocks.common.util.PulsarUtil;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.thrift.*;
 import org.apache.logging.log4j.LogManager;
@@ -59,9 +60,9 @@ public class PulsarTaskInfo extends RoutineLoadTaskInfo {
         this.partitionIdToOffset = partitionIdToOffset;
     }
 
-    public PulsarTaskInfo(long timeToExecuteMs, PulsarTaskInfo kafkaTaskInfo, Map<Integer, Long> partitionIdToOffset) {
-        super(UUID.randomUUID(), kafkaTaskInfo.getJobId(), kafkaTaskInfo.getClusterName(),
-                kafkaTaskInfo.getTaskScheduleIntervalMs(), timeToExecuteMs, kafkaTaskInfo.getBeId());
+    public PulsarTaskInfo(long timeToExecuteMs, PulsarTaskInfo pulsarTaskInfo, Map<Integer, Long> partitionIdToOffset) {
+        super(UUID.randomUUID(), pulsarTaskInfo.getJobId(), pulsarTaskInfo.getClusterName(),
+                pulsarTaskInfo.getTaskScheduleIntervalMs(), timeToExecuteMs, pulsarTaskInfo.getBeId());
         this.partitionIdToOffset = partitionIdToOffset;
     }
 
@@ -76,10 +77,10 @@ public class PulsarTaskInfo extends RoutineLoadTaskInfo {
             return false;
         }
 
-        KafkaRoutineLoadJob kafkaRoutineLoadJob = (KafkaRoutineLoadJob) routineLoadJob;
-        Map<Integer, Long> latestOffsets = KafkaUtil.getLatestOffsets(kafkaRoutineLoadJob.getBrokerList(),
-                kafkaRoutineLoadJob.getTopic(),
-                ImmutableMap.copyOf(kafkaRoutineLoadJob.getConvertedCustomProperties()),
+        PulsarRoutineLoadJob pulsarRoutineLoadJob = (PulsarRoutineLoadJob) routineLoadJob;
+        Map<Integer, Long> latestOffsets = PulsarUtil.getLatestOffsets(pulsarRoutineLoadJob.getBrokerList(),
+                pulsarRoutineLoadJob.getTopic(),
+                ImmutableMap.copyOf(pulsarRoutineLoadJob.getConvertedCustomProperties()),
                 new ArrayList<>(partitionIdToOffset.keySet()));
         for (Map.Entry<Integer, Long> entry : partitionIdToOffset.entrySet()) {
             int partitionId = entry.getKey();
@@ -101,7 +102,7 @@ public class PulsarTaskInfo extends RoutineLoadTaskInfo {
 
     @Override
     public boolean isProgressKeepUp(RoutineLoadProgress progress) {
-        KafkaProgress kProgress = (KafkaProgress) progress;
+        PulsarProgress kProgress = (PulsarProgress) progress;
         if (latestPartOffset == null) {
             return true;
         }
@@ -119,7 +120,7 @@ public class PulsarTaskInfo extends RoutineLoadTaskInfo {
 
     @Override
     public TRoutineLoadTask createRoutineLoadTask() throws UserException {
-        KafkaRoutineLoadJob routineLoadJob = (KafkaRoutineLoadJob) routineLoadManager.getJob(jobId);
+        PulsarRoutineLoadJob routineLoadJob = (PulsarRoutineLoadJob) routineLoadManager.getJob(jobId);
 
         // init tRoutineLoadTask and create plan fragment
         TRoutineLoadTask tRoutineLoadTask = new TRoutineLoadTask();
@@ -142,13 +143,13 @@ public class PulsarTaskInfo extends RoutineLoadTaskInfo {
                 Joiner.on("-").join(routineLoadJob.getName(), routineLoadJob.getId(), DebugUtil.printId(id), txnId);
         tRoutineLoadTask.setLabel(label);
         tRoutineLoadTask.setAuth_code(routineLoadJob.getAuthCode());
-        TKafkaLoadInfo tKafkaLoadInfo = new TKafkaLoadInfo();
-        tKafkaLoadInfo.setTopic((routineLoadJob).getTopic());
-        tKafkaLoadInfo.setBrokers((routineLoadJob).getBrokerList());
-        tKafkaLoadInfo.setPartition_begin_offset(partitionIdToOffset);
-        tKafkaLoadInfo.setProperties(routineLoadJob.getConvertedCustomProperties());
-        tRoutineLoadTask.setKafka_load_info(tKafkaLoadInfo);
-        tRoutineLoadTask.setType(TLoadSourceType.KAFKA);
+        TPulsarLoadInfo tPulsarLoadInfo = new TPulsarLoadInfo();
+        tPulsarLoadInfo.setTopic((routineLoadJob).getTopic());
+        tPulsarLoadInfo.setBrokers((routineLoadJob).getBrokerList());
+        tPulsarLoadInfo.setPartition_begin_offset(partitionIdToOffset);
+        tPulsarLoadInfo.setProperties(routineLoadJob.getConvertedCustomProperties());
+        tRoutineLoadTask.setPulsar_load_info(tPulsarLoadInfo);
+        tRoutineLoadTask.setType(TLoadSourceType.PULSAR);
         tRoutineLoadTask.setParams(plan(routineLoadJob));
         tRoutineLoadTask.setMax_interval_s(Config.routine_load_task_consume_second);
         tRoutineLoadTask.setMax_batch_rows(routineLoadJob.getMaxBatchRows());

@@ -50,6 +50,13 @@ struct TKafkaLoadInfo {
     4: optional map<string, string> properties;
 }
 
+struct TPulsarLoadInfo {
+    1: required string brokers;
+    2: required string topic;
+    3: required map<i32, i64> partition_begin_offset;
+    4: optional map<string, string> properties;
+}
+
 struct TRoutineLoadTask {
     1: required Types.TLoadSourceType type
     2: required i64 job_id
@@ -65,10 +72,15 @@ struct TRoutineLoadTask {
     12: optional TKafkaLoadInfo kafka_load_info
     13: optional InternalService.TExecPlanFragmentParams params
     14: optional PlanNodes.TFileFormatType format
+    15: optional TPulsarLoadInfo pulsar_load_info
 }
 
 struct TKafkaMetaProxyRequest {
     1: optional TKafkaLoadInfo kafka_info
+}
+
+struct TPulsarMetaProxyRequest {
+    1: optional TPulsarLoadInfo pulsar_info
 }
 
 struct TKafkaMetaProxyResult {
