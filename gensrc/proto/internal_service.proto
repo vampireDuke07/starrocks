@@ -256,8 +256,18 @@ message PKafkaLoadInfo {
     repeated PStringPair properties = 3;
 };
 
+message PPulsarLoadInfo {
+    required string brokers = 1;
+    required string topic = 2;
+    repeated PStringPair properties = 3;
+};
+
 message PKafkaMetaProxyRequest {
     optional PKafkaLoadInfo kafka_info = 1;
+};
+
+message PPulsarMetaProxyRequest {
+    optional PPulsarLoadInfo pulsar_info = 1;
 };
 
 message PKafkaOffsetProxyRequest {
@@ -265,17 +275,33 @@ message PKafkaOffsetProxyRequest {
     repeated int32 partition_ids = 2;
 }
 
+message PPulsarOffsetProxyRequest {
+    optional PPulsarLoadInfo pulsar_info = 1;
+    repeated int32 partition_ids = 2;
+}
+
 message PKafkaOffsetBatchProxyRequest {
     repeated PKafkaOffsetProxyRequest requests = 1;
 }
 
+message PPulsarOffsetBatchProxyRequest {
+    repeated PPulsarOffsetProxyRequest requests = 1;
+}
+
 message PProxyRequest {
     optional PKafkaMetaProxyRequest kafka_meta_request = 1;
+    optional PPulsarMetaProxyRequest pulsar_meta_request = 2;
     optional PKafkaOffsetProxyRequest kafka_offset_request = 101;
     optional PKafkaOffsetBatchProxyRequest kafka_offset_batch_request = 102;
+    optional PPulsarOffsetProxyRequest pulsar_offset_request = 103;
+    optional PPulsarOffsetBatchProxyRequest pulsar_offset_batch_request = 104;
 };
 
 message PKafkaMetaProxyResult {
+    repeated int32 partition_ids = 1;
+};
+
+message PPulsarMetaProxyResult {
     repeated int32 partition_ids = 1;
 };
 
@@ -286,15 +312,29 @@ message PKafkaOffsetProxyResult {
     repeated int64 latest_offsets = 3;
 }
 
+message PPulsarOffsetProxyResult {
+    // offset of partition_ids[i] is beginning_offsets[i] and latest_offsets[i]
+    repeated int32 partition_ids = 1;
+    repeated int64 beginning_offsets = 2;
+    repeated int64 latest_offsets = 3;
+}
+
 message PKafkaOffsetBatchProxyResult {
     repeated PKafkaOffsetProxyResult results = 1;
+}
+
+message PPulsarOffsetBatchProxyResult {
+    repeated PPulsarOffsetProxyResult results = 1;
 }
 
 message PProxyResult {
     required StatusPB status = 1;
     optional PKafkaMetaProxyResult kafka_meta_result = 2;
+    optional PPulsarMetaProxyResult pulsar_meta_result = 3;
     optional PKafkaOffsetProxyResult kafka_offset_result = 101;
     optional PKafkaOffsetBatchProxyResult kafka_offset_batch_result = 102;
+    optional PPulsarOffsetProxyResult pulsar_offset_result = 103;
+    optional PPulsarOffsetBatchProxyResult pulsar_offset_batch_result = 104;
 };
 
 // NOTE(zc): If you want to add new method here,

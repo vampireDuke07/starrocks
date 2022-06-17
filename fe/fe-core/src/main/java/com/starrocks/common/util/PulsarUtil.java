@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 public class PulsarUtil {
     private static final Logger LOG = LogManager.getLogger(PulsarUtil.class);
 
-    private static final ProxyAPI proxyApi = new ProxyAPI();
+    private static final PulsarUtil.ProxyAPI proxyApi = new PulsarUtil.ProxyAPI();
 
     public static List<Integer> getAllPulsarPartitions(String brokerList, String topic,
                                                       ImmutableMap<String, String> properties) throws UserException {
@@ -65,13 +65,11 @@ public class PulsarUtil {
         return proxyApi.getBeginningOffsets(brokerList, topic, properties, partitions);
     }
 
-    //todo PKafkaOffsetProxyResult to PPulsarOffsetProxyResult
-    public static List<PPulsarOffsetProxyResult> getBatchOffsets(List<PPulsarOffsetProxyResult> requests)
+    public static List<PPulsarOffsetProxyResult> getBatchOffsets(List<PPulsarOffsetProxyRequest> requests)
             throws UserException {
         return proxyApi.getBatchOffsets(requests);
     }
 
-    //todo PKafkaLoadInfo to PPulsarLoadInfo
     public static PPulsarLoadInfo genPPulsarLoadInfo(String brokerList, String topic,
                                                    ImmutableMap<String, String> properties) {
         PPulsarLoadInfo pulsarLoadInfo = new PPulsarLoadInfo();
@@ -89,10 +87,6 @@ public class PulsarUtil {
         return pulsarLoadInfo;
     }
 
-    // todo PKafkaMetaProxyRequest to PPulsarMetaProxyRequest
-    // todo kafkaInfo to pulsarInfo
-    // todo kafkaMetaRequest to pulsarMetaRequest
-    // todo kafkaMetaResult to pulsarMetaResult
     static class ProxyAPI {
         public List<Integer> getAllPulsarPartitions(String brokerList, String topic,
                                                    ImmutableMap<String, String> convertedCustomProperties)
@@ -122,7 +116,6 @@ public class PulsarUtil {
         public Map<Integer, Long> getOffsets(String brokerList, String topic,
                                              ImmutableMap<String, String> properties,
                                              List<Integer> partitions, boolean isLatest) throws UserException {
-            // todo PKafkaOffsetProxyRequest to PPulsarOffsetProxyRequest
             // create request
             PPulsarOffsetProxyRequest offsetRequest = new PPulsarOffsetProxyRequest();
             offsetRequest.pulsarInfo = genPPulsarLoadInfo(brokerList, topic, properties);
@@ -147,7 +140,7 @@ public class PulsarUtil {
             return partitionOffsets;
         }
 
-        public List<PPulsarOffsetProxyResult> getBatchOffsets(List<PPulsarOffsetProxyResult> requests)
+        public List<PPulsarOffsetProxyResult> getBatchOffsets(List<PPulsarOffsetProxyRequest> requests)
                 throws UserException {
             // create request
             PProxyRequest pProxyRequest = new PProxyRequest();
