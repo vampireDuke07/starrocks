@@ -1,6 +1,6 @@
 // This file is made available under Elastic License 2.0.
 // This file is based on code available under the Apache license here:
-//   https://github.com/apache/incubator-doris/blob/master/fe/fe-core/src/main/java/org/apache/doris/load/routineload/KafkaTaskInfo.java
+//   https://github.com/apache/incubator-doris/blob/master/fe/fe-core/src/main/java/org/apache/doris/load/routineload/PulsarTaskInfo.java
 
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
@@ -30,10 +30,15 @@ import com.starrocks.common.Config;
 import com.starrocks.common.MetaNotFoundException;
 import com.starrocks.common.UserException;
 import com.starrocks.common.util.DebugUtil;
-import com.starrocks.common.util.KafkaUtil;
 import com.starrocks.common.util.PulsarUtil;
 import com.starrocks.server.GlobalStateMgr;
-import com.starrocks.thrift.*;
+import com.starrocks.thrift.TRoutineLoadTask;
+import com.starrocks.thrift.TUniqueId;
+import com.starrocks.thrift.TPulsarLoadInfo;
+import com.starrocks.thrift.TLoadSourceType;
+import com.starrocks.thrift.TFileFormatType;
+import com.starrocks.thrift.TExecPlanFragmentParams;
+import com.starrocks.thrift.TPlanFragment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
