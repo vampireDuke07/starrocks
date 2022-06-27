@@ -21,6 +21,7 @@
 
 package com.starrocks.load.routineload;
 
+import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -1552,11 +1553,20 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
             tableName = "unknown";
         }
 
+        // todo 需要判断，区分Kafka与pulsar任务
         // we use sql to persist the load properties, so we just put the load properties to sql.
-        String sql = String.format("CREATE ROUTINE LOAD %s ON %s %s" +
-                " PROPERTIES (\"desired_concurrent_number\"=\"1\")" +
-                " FROM KAFKA (\"kafka_topic\" = \"my_topic\")",
-                name, tableName, originLoadDesc.toSql());
+        String sql = "";
+        if (origStmt.toString().contains("FROM KAFKA")) {
+            sql = String.format("CREATE ROUTINE LOAD %s ON %s %s" +
+                            " PROPERTIES (\"desired_concurrent_number\"=\"1\")" +
+                            " FROM KAFKA (\"kafka_topic\" = \"my_topic\")",
+                    name, tableName, originLoadDesc.toSql());
+        } else {
+            sql = String.format("CREATE ROUTINE LOAD %s ON %s %s" +
+                            " PROPERTIES (\"desired_concurrent_number\"=\"1\")" +
+                            " FROM PULSAR (\"pulsar_topic\" = \"my_topic\")",
+                    name, tableName, originLoadDesc.toSql());
+        }
         LOG.debug("merge result: {}", sql);
         origStmt = new OriginStatement(sql, 0);
     }

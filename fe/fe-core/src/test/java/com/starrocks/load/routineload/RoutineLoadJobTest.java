@@ -35,12 +35,14 @@ import com.starrocks.common.InternalErrorCode;
 import com.starrocks.common.UserException;
 import com.starrocks.common.jmockit.Deencapsulation;
 import com.starrocks.common.util.KafkaUtil;
+import com.starrocks.common.util.PulsarUtil;
 import com.starrocks.load.RoutineLoadDesc;
 import com.starrocks.persist.EditLog;
 import com.starrocks.persist.RoutineLoadOperation;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.OriginStatement;
 import com.starrocks.thrift.TKafkaRLTaskProgress;
+import com.starrocks.thrift.TPulsarRLTaskProgress;
 import com.starrocks.transaction.TransactionException;
 import com.starrocks.transaction.TransactionState;
 import com.starrocks.utframe.UtFrameUtils;
@@ -90,6 +92,42 @@ public class RoutineLoadJobTest {
         routineLoadJob.afterAborted(transactionState, true, txnStatusChangeReasonString);
 
         Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, routineLoadJob.getState());
+    }
+
+    @Test
+    public void testAfterAbortedReasonOffsetOutOfRangePulsar(@Mocked Catalog catalog,
+                                                       @Injectable TransactionState transactionState,
+                                                       @Injectable RoutineLoadTaskInfo routineLoadTaskInfo)
+            throws UserException {
+
+        List<RoutineLoadTaskInfo> routineLoadTaskInfoList = Lists.newArrayList();
+        routineLoadTaskInfoList.add(routineLoadTaskInfo);
+        long txnId = 1L;
+
+        new Expectations() {
+            {
+                transactionState.getTransactionId();
+                minTimes = 0;
+                result = txnId;
+                routineLoadTaskInfo.getTxnId();
+                minTimes = 0;
+                result = txnId;
+            }
+        };
+
+        new MockUp<RoutineLoadJob>() {
+            @Mock
+            void writeUnlock() {
+            }
+        };
+
+        String txnStatusChangeReasonString = TransactionState.TxnStatusChangeReason.OFFSET_OUT_OF_RANGE.toString();
+        RoutineLoadJob routineLoadJob_pulsar = new PulsarRoutineLoadJob();
+
+        Deencapsulation.setField(routineLoadJob_pulsar, "routineLoadTaskInfoList", routineLoadTaskInfoList);
+        routineLoadJob_pulsar.afterAborted(transactionState, true, txnStatusChangeReasonString);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, routineLoadJob_pulsar.getState());
     }
 
     @Test
@@ -145,6 +183,58 @@ public class RoutineLoadJobTest {
     }
 
     @Test
+    public void testAfterAbortedPulsar(@Injectable TransactionState transactionState,
+                                 @Injectable PulsarTaskInfo routineLoadTaskInfo) throws UserException {
+        List<RoutineLoadTaskInfo> routineLoadTaskInfoList = Lists.newArrayList();
+        routineLoadTaskInfoList.add(routineLoadTaskInfo);
+        long txnId = 1L;
+
+        RLTaskTxnCommitAttachment attachment = new RLTaskTxnCommitAttachment();
+        TPulsarRLTaskProgress tPulsarRLTaskProgress = new TPulsarRLTaskProgress();
+        tPulsarRLTaskProgress.partitionCmtOffset = Maps.newHashMap();
+        PulsarProgress pulsarProgress = new PulsarProgress(tPulsarRLTaskProgress);
+        Deencapsulation.setField(attachment, "progress", pulsarProgress);
+
+        PulsarProgress currentProgress = new PulsarProgress(tPulsarRLTaskProgress);
+
+        new Expectations() {
+            {
+                transactionState.getTransactionId();
+                minTimes = 0;
+                result = txnId;
+                routineLoadTaskInfo.getTxnId();
+                minTimes = 0;
+                result = txnId;
+                transactionState.getTxnCommitAttachment();
+                minTimes = 0;
+                result = attachment;
+                routineLoadTaskInfo.getPartitions();
+                minTimes = 0;
+                result = Lists.newArrayList();
+                routineLoadTaskInfo.getId();
+                minTimes = 0;
+                result = UUID.randomUUID();
+            }
+        };
+
+        new MockUp<RoutineLoadJob>() {
+            @Mock
+            void writeUnlock() {
+            }
+        };
+
+        String txnStatusChangeReasonString = "no data";
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.RUNNING);
+        Deencapsulation.setField(routineLoadJob, "routineLoadTaskInfoList", routineLoadTaskInfoList);
+        Deencapsulation.setField(routineLoadJob, "progress", currentProgress);
+        routineLoadJob.afterAborted(transactionState, true, txnStatusChangeReasonString);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.RUNNING, routineLoadJob.getState());
+        Assert.assertEquals(new Long(1), Deencapsulation.getField(routineLoadJob, "abortedTaskNum"));
+    }
+
+    @Test
     public void testAfterCommittedWhileTaskAborted(@Mocked Catalog catalog,
                                                    @Injectable TransactionState transactionState,
                                                    @Injectable KafkaProgress progress) throws UserException {
@@ -179,6 +269,40 @@ public class RoutineLoadJobTest {
     }
 
     @Test
+    public void testAfterCommittedWhileTaskAbortedPulsar(@Mocked Catalog catalog,
+                                                   @Injectable TransactionState transactionState,
+                                                   @Injectable PulsarProgress progress) throws UserException {
+        List<RoutineLoadTaskInfo> routineLoadTaskInfoList = Lists.newArrayList();
+        long txnId = 1L;
+
+        new Expectations() {
+            {
+                transactionState.getTransactionId();
+                minTimes = 0;
+                result = txnId;
+            }
+        };
+
+        new MockUp<RoutineLoadJob>() {
+            @Mock
+            void writeUnlock() {
+            }
+        };
+
+        String txnStatusChangeReasonString = "no data";
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.RUNNING);
+        Deencapsulation.setField(routineLoadJob, "routineLoadTaskInfoList", routineLoadTaskInfoList);
+        Deencapsulation.setField(routineLoadJob, "progress", progress);
+        try {
+            routineLoadJob.afterCommitted(transactionState, true);
+            Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, routineLoadJob.getState());
+        } catch (TransactionException e) {
+            Assert.fail();
+        }
+    }
+
+    @Test
     public void testGetShowInfo(@Mocked KafkaProgress kafkaProgress) {
         RoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
         Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.PAUSED);
@@ -186,6 +310,20 @@ public class RoutineLoadJobTest {
                 TransactionState.TxnStatusChangeReason.OFFSET_OUT_OF_RANGE.toString());
         Deencapsulation.setField(routineLoadJob, "pauseReason", errorReason);
         Deencapsulation.setField(routineLoadJob, "progress", kafkaProgress);
+
+        List<String> showInfo = routineLoadJob.getShowInfo();
+        Assert.assertEquals(true, showInfo.stream().filter(entity -> !Strings.isNullOrEmpty(entity))
+                .anyMatch(entity -> entity.equals(errorReason.toString())));
+    }
+
+    @Test
+    public void testGetShowInfoPulsar(@Mocked PulsarProgress pulsarProgress) {
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.PAUSED);
+        ErrorReason errorReason = new ErrorReason(InternalErrorCode.INTERNAL_ERR,
+                TransactionState.TxnStatusChangeReason.OFFSET_OUT_OF_RANGE.toString());
+        Deencapsulation.setField(routineLoadJob, "pauseReason", errorReason);
+        Deencapsulation.setField(routineLoadJob, "progress", pulsarProgress);
 
         List<String> showInfo = routineLoadJob.getShowInfo();
         Assert.assertEquals(true, showInfo.stream().filter(entity -> !Strings.isNullOrEmpty(entity))
@@ -209,6 +347,22 @@ public class RoutineLoadJobTest {
     }
 
     @Test
+    public void testUpdateWhileDbDeletedPulsar(@Mocked Catalog catalog) throws UserException {
+        new Expectations() {
+            {
+                catalog.getDb(anyLong);
+                minTimes = 0;
+                result = null;
+            }
+        };
+
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        routineLoadJob.update();
+
+        Assert.assertEquals(RoutineLoadJob.JobState.CANCELLED, routineLoadJob.getState());
+    }
+
+    @Test
     public void testUpdateWhileTableDeleted(@Mocked Catalog catalog,
                                             @Injectable Database database) throws UserException {
         new Expectations() {
@@ -222,6 +376,25 @@ public class RoutineLoadJobTest {
             }
         };
         RoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
+        routineLoadJob.update();
+
+        Assert.assertEquals(RoutineLoadJob.JobState.CANCELLED, routineLoadJob.getState());
+    }
+
+    @Test
+    public void testUpdateWhileTableDeletedPulsar(@Mocked Catalog catalog,
+                                            @Injectable Database database) throws UserException {
+        new Expectations() {
+            {
+                catalog.getDb(anyLong);
+                minTimes = 0;
+                result = database;
+                database.getTable(anyLong);
+                minTimes = 0;
+                result = null;
+            }
+        };
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
         routineLoadJob.update();
 
         Assert.assertEquals(RoutineLoadJob.JobState.CANCELLED, routineLoadJob.getState());
@@ -268,8 +441,59 @@ public class RoutineLoadJobTest {
     }
 
     @Test
+    public void testUpdateWhilePartitionChangedPulsar(@Mocked Catalog catalog,
+                                                @Injectable Database database,
+                                                @Injectable Table table,
+                                                @Injectable PulsarProgress pulsarProgress) throws UserException {
+
+        new Expectations() {
+            {
+                catalog.getDb(anyLong);
+                minTimes = 0;
+                result = database;
+                database.getTable(anyLong);
+                minTimes = 0;
+                result = table;
+            }
+        };
+
+        new MockUp<PulsarUtil>() {
+            @Mock
+            public List<Integer> getAllPulsarPartitions(String serverUrl, String topic,
+                                                       ImmutableMap<String, String> properties) throws UserException {
+                return Lists.newArrayList(1, 2, 3);
+            }
+        };
+
+        new MockUp<EditLog>() {
+            @Mock
+            public void logOpRoutineLoadJob(RoutineLoadOperation routineLoadOperation) {
+
+            }
+        };
+
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.RUNNING);
+        Deencapsulation.setField(routineLoadJob, "progress", pulsarProgress);
+        routineLoadJob.update();
+
+        Assert.assertEquals(RoutineLoadJob.JobState.NEED_SCHEDULE, routineLoadJob.getState());
+    }
+
+    @Test
     public void testUpdateNumOfDataErrorRowMoreThanMax(@Mocked Catalog catalog) {
         RoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "maxErrorNum", 0);
+        Deencapsulation.setField(routineLoadJob, "maxBatchRows", 0);
+        Deencapsulation.invoke(routineLoadJob, "updateNumOfData", 1L, 1L, 0L, 1L, 1L, false);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, Deencapsulation.getField(routineLoadJob, "state"));
+
+    }
+
+    @Test
+    public void testUpdateNumOfDataErrorRowMoreThanMaxPulsar(@Mocked Catalog catalog) {
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
         Deencapsulation.setField(routineLoadJob, "maxErrorNum", 0);
         Deencapsulation.setField(routineLoadJob, "maxBatchRows", 0);
         Deencapsulation.invoke(routineLoadJob, "updateNumOfData", 1L, 1L, 0L, 1L, 1L, false);
@@ -295,8 +519,68 @@ public class RoutineLoadJobTest {
     }
 
     @Test
+    public void testUpdateTotalMoreThanBatchPulsar() {
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.RUNNING);
+        Deencapsulation.setField(routineLoadJob, "maxErrorNum", 10);
+        Deencapsulation.setField(routineLoadJob, "maxBatchRows", 10);
+        Deencapsulation.setField(routineLoadJob, "currentErrorRows", 1);
+        Deencapsulation.setField(routineLoadJob, "currentTotalRows", 99);
+        Deencapsulation.invoke(routineLoadJob, "updateNumOfData", 2L, 0L, 0L, 1L, 1L, false);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.RUNNING, Deencapsulation.getField(routineLoadJob, "state"));
+        Assert.assertEquals(new Long(0), Deencapsulation.getField(routineLoadJob, "currentErrorRows"));
+        Assert.assertEquals(new Long(0), Deencapsulation.getField(routineLoadJob, "currentTotalRows"));
+
+    }
+
+    @Test
     public void testModifyJobProperties() throws Exception {
         RoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
+        ConnectContext connectContext = UtFrameUtils.createDefaultCtx();
+        // alter job properties
+        String desiredConcurrentNumber = "3";
+        String maxBatchInterval = "60";
+        String maxErrorNumber = "10000";
+        String maxBatchRows = "200000";
+        String strictMode = "true";
+        String timeZone = "UTC";
+        String jsonPaths = "[\\\"$.category\\\",\\\"$.author\\\",\\\"$.price\\\",\\\"$.timestamp\\\"]";
+        String stripOuterArray = "true";
+        String jsonRoot = "$.RECORDS";
+        String originStmt = "alter routine load for db.job1 " +
+                "properties (" +
+                "   \"desired_concurrent_number\" = \"" + desiredConcurrentNumber + "\"," +
+                "   \"max_batch_interval\" = \"" + maxBatchInterval + "\"," +
+                "   \"max_error_number\" = \"" + maxErrorNumber + "\"," +
+                "   \"max_batch_rows\" = \"" + maxBatchRows + "\"," +
+                "   \"strict_mode\" = \"" + strictMode + "\"," +
+                "   \"timezone\" = \"" + timeZone + "\"," +
+                "   \"jsonpaths\" = \"" + jsonPaths + "\"," +
+                "   \"strip_outer_array\" = \"" + stripOuterArray + "\"," +
+                "   \"json_root\" = \"" + jsonRoot + "\"" +
+                ")";
+        AlterRoutineLoadStmt stmt = (AlterRoutineLoadStmt) UtFrameUtils.parseAndAnalyzeStmt(originStmt, connectContext);
+        routineLoadJob.modifyJob(stmt.getRoutineLoadDesc(), stmt.getAnalyzedJobProperties(),
+                stmt.getDataSourceProperties(), new OriginStatement(originStmt, 0), true);
+        Assert.assertEquals(Integer.parseInt(desiredConcurrentNumber),
+                (int) Deencapsulation.getField(routineLoadJob, "desireTaskConcurrentNum"));
+        Assert.assertEquals(Long.parseLong(maxBatchInterval),
+                (long) Deencapsulation.getField(routineLoadJob, "taskSchedIntervalS"));
+        Assert.assertEquals(Long.parseLong(maxErrorNumber),
+                (long) Deencapsulation.getField(routineLoadJob, "maxErrorNum"));
+        Assert.assertEquals(Long.parseLong(maxBatchRows),
+                (long) Deencapsulation.getField(routineLoadJob, "maxBatchRows"));
+        Assert.assertEquals(Boolean.parseBoolean(strictMode), routineLoadJob.isStrictMode());
+        Assert.assertEquals(timeZone, routineLoadJob.getTimezone());
+        Assert.assertEquals(jsonPaths.replace("\\", ""), routineLoadJob.getJsonPaths());
+        Assert.assertEquals(Boolean.parseBoolean(stripOuterArray), routineLoadJob.isStripOuterArray());
+        Assert.assertEquals(jsonRoot, routineLoadJob.getJsonRoot());
+    }
+
+    @Test
+    public void testModifyJobPropertiesPulsar() throws Exception {
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
         ConnectContext connectContext = UtFrameUtils.createDefaultCtx();
         // alter job properties
         String desiredConcurrentNumber = "3";
@@ -364,8 +648,54 @@ public class RoutineLoadJobTest {
     }
 
     @Test
+    public void testModifyDataSourcePropertiesPulsar() throws Exception {
+        PulsarRoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        ConnectContext connectContext = UtFrameUtils.createDefaultCtx();
+        //alter data source custom properties
+        String groupId = "group1";
+        String clientId = "client1";
+        String defaultOffsets = "OFFSET_BEGINNING";
+        String originStmt = "alter routine load for db.job1 " +
+                "FROM PULSAR (" +
+                "   \"property.group.id\" = \"" + groupId + "\"," +
+                "   \"property.client.id\" = \"" + clientId + "\"," +
+                "   \"property.pulsar_default_offsets\" = \"" + defaultOffsets + "\"" +
+                ")";
+        AlterRoutineLoadStmt stmt = (AlterRoutineLoadStmt) UtFrameUtils.parseAndAnalyzeStmt(originStmt, connectContext);
+        routineLoadJob.modifyJob(stmt.getRoutineLoadDesc(), stmt.getAnalyzedJobProperties(),
+                stmt.getDataSourceProperties(), new OriginStatement(originStmt, 0), true);
+        routineLoadJob.convertCustomProperties(true);
+        Map<String, String> properties = routineLoadJob.getConvertedCustomProperties();
+        Assert.assertEquals(groupId, properties.get("group.id"));
+        Assert.assertEquals(clientId, properties.get("client.id"));
+        Assert.assertEquals(-2L,
+                (long) Deencapsulation.getField(routineLoadJob, "pulsarDefaultOffSet"));
+    }
+
+    @Test
     public void testModifyLoadDesc() throws Exception {
         KafkaRoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
+        ConnectContext connectContext = UtFrameUtils.createDefaultCtx();
+        //alter load desc
+        String originStmt = "alter routine load for db.job1 " +
+                "COLUMNS (a, b, c, d=a), " +
+                "WHERE a = 1," +
+                "COLUMNS TERMINATED BY \",\"," +
+                "PARTITION(p1, p2, p3)," +
+                "ROWS TERMINATED BY \"A\"";
+        AlterRoutineLoadStmt stmt = (AlterRoutineLoadStmt) UtFrameUtils.parseAndAnalyzeStmt(originStmt, connectContext);
+        routineLoadJob.modifyJob(stmt.getRoutineLoadDesc(), stmt.getAnalyzedJobProperties(),
+                stmt.getDataSourceProperties(), new OriginStatement(originStmt, 0), true);
+        Assert.assertEquals("a,b,c,d=`a`", Joiner.on(",").join(routineLoadJob.getColumnDescs()));
+        Assert.assertEquals("`a` = 1", routineLoadJob.getWhereExpr().toSql());
+        Assert.assertEquals("','", routineLoadJob.getColumnSeparator().toString());
+        Assert.assertEquals("'A'", routineLoadJob.getRowDelimiter().toString());
+        Assert.assertEquals("p1,p2,p3", Joiner.on(",").join(routineLoadJob.getPartitions().getPartitionNames()));
+    }
+
+    @Test
+    public void testModifyLoadDescPulsar() throws Exception {
+        PulsarRoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
         ConnectContext connectContext = UtFrameUtils.createDefaultCtx();
         //alter load desc
         String originStmt = "alter routine load for db.job1 " +
@@ -521,5 +851,144 @@ public class RoutineLoadJobTest {
                 "WHERE `a` = 5 " +
                 "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
                 "FROM KAFKA (\"kafka_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+    }
+
+    @Test
+    public void testMergeLoadDescToOriginStatementPulsar() throws Exception {
+        PulsarRoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob(1L, "job",
+                "default_cluster", 2L, 3L, "192.168.1.2:10000", "topic");
+        String originStmt = "CREATE ROUTINE LOAD job ON unknown " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")";
+        routineLoadJob.setOrigStmt(new OriginStatement(originStmt, 0));
+
+        // alter columns terminator
+        RoutineLoadDesc loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "COLUMNS TERMINATED BY ';'", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY ';' " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter rows terminator
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "ROWS TERMINATED BY '\n'", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY ';', " +
+                "ROWS TERMINATED BY '\n' " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter columns
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "COLUMNS(`a`, `b`, `c`=1)", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY ';', " +
+                "ROWS TERMINATED BY '\n', " +
+                "COLUMNS(`a`, `b`, `c` = 1) " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter partition
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "TEMPORARY PARTITION(`p1`, `p2`)", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY ';', " +
+                "ROWS TERMINATED BY '\n', " +
+                "COLUMNS(`a`, `b`, `c` = 1), " +
+                "TEMPORARY PARTITION(`p1`, `p2`) " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter where
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "WHERE a = 1", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY ';', " +
+                "ROWS TERMINATED BY '\n', " +
+                "COLUMNS(`a`, `b`, `c` = 1), " +
+                "TEMPORARY PARTITION(`p1`, `p2`), " +
+                "WHERE `a` = 1 " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter columns terminator again
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "COLUMNS TERMINATED BY '\t'", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY '\t', " +
+                "ROWS TERMINATED BY '\n', " +
+                "COLUMNS(`a`, `b`, `c` = 1), " +
+                "TEMPORARY PARTITION(`p1`, `p2`), " +
+                "WHERE `a` = 1 " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter rows terminator again
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "ROWS TERMINATED BY 'a'", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY '\t', " +
+                "ROWS TERMINATED BY 'a', " +
+                "COLUMNS(`a`, `b`, `c` = 1), " +
+                "TEMPORARY PARTITION(`p1`, `p2`), " +
+                "WHERE `a` = 1 " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter columns again
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "COLUMNS(`a`)", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY '\t', " +
+                "ROWS TERMINATED BY 'a', " +
+                "COLUMNS(`a`), " +
+                "TEMPORARY PARTITION(`p1`, `p2`), " +
+                "WHERE `a` = 1 " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+        // alter partition again
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        " PARTITION(`p1`, `p2`)", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY '\t', " +
+                "ROWS TERMINATED BY 'a', " +
+                "COLUMNS(`a`), " +
+                "PARTITION(`p1`, `p2`), " +
+                "WHERE `a` = 1 " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
+
+        // alter where again
+        loadDesc = CreateRoutineLoadStmt.getLoadDesc(new OriginStatement(
+                "ALTER ROUTINE LOAD FOR job " +
+                        "WHERE a = 5", 0), null);
+        routineLoadJob.mergeLoadDescToOriginStatement(loadDesc);
+        Assert.assertEquals("CREATE ROUTINE LOAD job ON unknown " +
+                "COLUMNS TERMINATED BY '\t', " +
+                "ROWS TERMINATED BY 'a', " +
+                "COLUMNS(`a`), " +
+                "PARTITION(`p1`, `p2`), " +
+                "WHERE `a` = 5 " +
+                "PROPERTIES (\"desired_concurrent_number\"=\"1\") " +
+                "FROM PULSAR (\"pulsar_topic\" = \"my_topic\")", routineLoadJob.getOrigStmt().originStmt);
     }
 }
