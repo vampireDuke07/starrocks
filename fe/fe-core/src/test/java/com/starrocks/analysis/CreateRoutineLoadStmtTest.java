@@ -119,6 +119,52 @@ public class CreateRoutineLoadStmtTest {
     }
 
     @Test
+    public void testAnalyzeWithDuplicatePropertyPulsar(@Injectable Analyzer analyzer) throws UserException {
+        String jobName = "job1";
+        String dbName = "db1";
+        LabelName labelName = new LabelName(dbName, jobName);
+        String tableNameString = "table1";
+        String topicName = "sr_dev";
+        String serverAddress = "pulsar://42.194.172.174:6651/";
+        String pulsarPartitionString = "1,2";
+        List<String> partitionNameString = Lists.newArrayList();
+        partitionNameString.add("p1");
+        PartitionNames partitionNames = new PartitionNames(false, partitionNameString);
+        ColumnSeparator columnSeparator = new ColumnSeparator(",");
+
+        // duplicate load property
+        List<ParseNode> loadPropertyList = new ArrayList<>();
+        loadPropertyList.add(columnSeparator);
+        loadPropertyList.add(columnSeparator);
+        Map<String, String> properties = Maps.newHashMap();
+        properties.put(CreateRoutineLoadStmt.DESIRED_CONCURRENT_NUMBER_PROPERTY, "2");
+        String typeName = LoadDataSourceType.PULSAR.name();
+        Map<String, String> customProperties = Maps.newHashMap();
+
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_TOPIC_PROPERTY, topicName);
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_SERVICE_URL_PROPERTY, serverAddress);
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_PARTITIONS_PROPERTY, pulsarPartitionString);
+
+        CreateRoutineLoadStmt createRoutineLoadStmt = new CreateRoutineLoadStmt(labelName, tableNameString,
+                loadPropertyList, properties,
+                typeName, customProperties);
+
+        new MockUp<StatementBase>() {
+            @Mock
+            public void analyze(Analyzer analyzer1) {
+                return;
+            }
+        };
+
+        try {
+            createRoutineLoadStmt.analyze(analyzer);
+            Assert.fail();
+        } catch (AnalysisException e) {
+            LOG.info(e.getMessage());
+        }
+    }
+
+    @Test
     public void testAnalyze(@Injectable Analyzer analyzer) throws UserException {
         String jobName = "job1";
         String dbName = "db1";
