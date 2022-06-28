@@ -1567,7 +1567,7 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
                             " PROPERTIES (\"desired_concurrent_number\"=\"1\")" +
                             " FROM KAFKA (\"kafka_topic\" = \"my_topic\")",
                     name, tableName, originLoadDesc.toSql());
-        } else if(origStmt.toString().contains("FROM PULSAR")) {
+        } else if (origStmt.toString().contains("FROM PULSAR")) {
             sql = String.format("CREATE ROUTINE LOAD %s ON %s %s" +
                             " PROPERTIES (\"desired_concurrent_number\"=\"1\")" +
                             " FROM PULSAR (\"pulsar_topic\" = \"my_topic\")",
