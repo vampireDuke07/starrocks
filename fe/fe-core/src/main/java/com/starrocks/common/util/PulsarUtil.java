@@ -54,9 +54,9 @@ public class PulsarUtil {
 
     private static final ProxyAPI proxyApi = new ProxyAPI();
 
-    public static List<Integer> getAllPulsarPartitions(String brokerList, String topic,
+    public static List<Integer> getAllPulsarPartitions(String serverUrl, String topic,
                                                       ImmutableMap<String, String> properties) throws UserException {
-        return proxyApi.getAllPulsarPartitions(brokerList, topic, properties);
+        return proxyApi.getAllPulsarPartitions(serverUrl, topic, properties);
     }
 
     // latest offset is (the latest existing message offset + 1)
@@ -90,6 +90,7 @@ public class PulsarUtil {
             }
             pulsarLoadInfo.properties.add(pair);
         }
+        LOG.info("dev debug info: current servers: {}, current topic: {} current properties: {}", serverUrl, topic, properties);
         return pulsarLoadInfo;
     }
 
