@@ -144,6 +144,75 @@ public class RoutineLoadManagerTest {
     }
 
     @Test
+    public void testAddJobByStmtPulsar(@Injectable Auth auth,
+                                 @Injectable TResourceInfo tResourceInfo,
+                                 @Mocked ConnectContext connectContext,
+                                 @Mocked Catalog catalog) throws UserException {
+        String jobName = "job1";
+        String dbName = "db1";
+        LabelName labelName = new LabelName(dbName, jobName);
+        String tableNameString = "table1";
+        TableName tableName = new TableName(dbName, tableNameString);
+        List<ParseNode> loadPropertyList = new ArrayList<>();
+        ColumnSeparator columnSeparator = new ColumnSeparator(",");
+        loadPropertyList.add(columnSeparator);
+        Map<String, String> properties = Maps.newHashMap();
+        properties.put(CreateRoutineLoadStmt.DESIRED_CONCURRENT_NUMBER_PROPERTY, "2");
+        String typeName = LoadDataSourceType.PULSAR.name();
+        Map<String, String> customProperties = Maps.newHashMap();
+        String topicName = "topic1";
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_TOPIC_PROPERTY, topicName);
+        String serverAddress = "http://127.0.0.1:8080";
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_SERVICE_URL_PROPERTY, serverAddress);
+        CreateRoutineLoadStmt createRoutineLoadStmt = new CreateRoutineLoadStmt(labelName, tableNameString,
+                loadPropertyList, properties,
+                typeName, customProperties);
+        createRoutineLoadStmt.setOrigStmt(new OriginStatement("dummy", 0));
+
+        PulsarRoutineLoadJob pulsarRoutineLoadJob = new PulsarRoutineLoadJob(1L, jobName, "default_cluster", 1L, 1L,
+                serverAddress, topicName);
+
+        new MockUp<PulsarRoutineLoadJob>() {
+            @Mock
+            public PulsarRoutineLoadJob fromCreateStmt(CreateRoutineLoadStmt stmt) {
+                return pulsarRoutineLoadJob;
+            }
+        };
+
+        new Expectations() {
+            {
+                catalog.getAuth();
+                minTimes = 0;
+                result = auth;
+                auth.checkTblPriv((ConnectContext) any, anyString, anyString, PrivPredicate.LOAD);
+                minTimes = 0;
+                result = true;
+            }
+        };
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        routineLoadManager.createRoutineLoadJob(createRoutineLoadStmt);
+
+        Map<String, RoutineLoadJob> idToRoutineLoadJob =
+                Deencapsulation.getField(routineLoadManager, "idToRoutineLoadJob");
+        Assert.assertEquals(1, idToRoutineLoadJob.size());
+        RoutineLoadJob routineLoadJob = idToRoutineLoadJob.values().iterator().next();
+        Assert.assertEquals(1L, routineLoadJob.getDbId());
+        Assert.assertEquals(jobName, routineLoadJob.getName());
+        Assert.assertEquals(1L, routineLoadJob.getTableId());
+        Assert.assertEquals(RoutineLoadJob.JobState.NEED_SCHEDULE, routineLoadJob.getState());
+        Assert.assertEquals(true, routineLoadJob instanceof PulsarRoutineLoadJob);
+
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob =
+                Deencapsulation.getField(routineLoadManager, "dbToNameToRoutineLoadJob");
+        Assert.assertEquals(1, dbToNameToRoutineLoadJob.size());
+        Assert.assertEquals(Long.valueOf(1L), dbToNameToRoutineLoadJob.keySet().iterator().next());
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = dbToNameToRoutineLoadJob.get(1L);
+        Assert.assertEquals(jobName, nameToRoutineLoadJob.keySet().iterator().next());
+        Assert.assertEquals(1, nameToRoutineLoadJob.values().size());
+        Assert.assertEquals(routineLoadJob, nameToRoutineLoadJob.values().iterator().next().get(0));
+    }
+
+    @Test
     public void testCreateJobAuthDeny(@Injectable Auth auth,
                                       @Injectable TResourceInfo tResourceInfo,
                                       @Mocked ConnectContext connectContext,
@@ -164,6 +233,55 @@ public class RoutineLoadManagerTest {
         customProperties.put(CreateRoutineLoadStmt.KAFKA_TOPIC_PROPERTY, topicName);
         String serverAddress = "http://127.0.0.1:8080";
         customProperties.put(CreateRoutineLoadStmt.KAFKA_BROKER_LIST_PROPERTY, serverAddress);
+        CreateRoutineLoadStmt createRoutineLoadStmt = new CreateRoutineLoadStmt(labelName, tableNameString,
+                loadPropertyList, properties,
+                typeName, customProperties);
+        createRoutineLoadStmt.setOrigStmt(new OriginStatement("dummy", 0));
+
+        new Expectations() {
+            {
+                catalog.getAuth();
+                minTimes = 0;
+                result = auth;
+                auth.checkTblPriv((ConnectContext) any, anyString, anyString, PrivPredicate.LOAD);
+                minTimes = 0;
+                result = false;
+            }
+        };
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        try {
+            routineLoadManager.createRoutineLoadJob(createRoutineLoadStmt);
+            Assert.fail();
+        } catch (LoadException | DdlException e) {
+            Assert.fail();
+        } catch (AnalysisException e) {
+            LOG.info("Access deny");
+        } catch (UserException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void testCreateJobAuthDenyPulsar(@Injectable Auth auth,
+                                      @Injectable TResourceInfo tResourceInfo,
+                                      @Mocked ConnectContext connectContext,
+                                      @Mocked Catalog catalog) {
+        String jobName = "job1";
+        String dbName = "db1";
+        LabelName labelName = new LabelName(dbName, jobName);
+        String tableNameString = "table1";
+        TableName tableName = new TableName(dbName, tableNameString);
+        List<ParseNode> loadPropertyList = new ArrayList<>();
+        ColumnSeparator columnSeparator = new ColumnSeparator(",");
+        loadPropertyList.add(columnSeparator);
+        Map<String, String> properties = Maps.newHashMap();
+        properties.put(CreateRoutineLoadStmt.DESIRED_CONCURRENT_NUMBER_PROPERTY, "2");
+        String typeName = LoadDataSourceType.PULSAR.name();
+        Map<String, String> customProperties = Maps.newHashMap();
+        String topicName = "topic1";
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_TOPIC_PROPERTY, topicName);
+        String serverAddress = "http://127.0.0.1:8080";
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_SERVICE_URL_PROPERTY, serverAddress);
         CreateRoutineLoadStmt createRoutineLoadStmt = new CreateRoutineLoadStmt(labelName, tableNameString,
                 loadPropertyList, properties,
                 typeName, customProperties);
@@ -221,6 +339,34 @@ public class RoutineLoadManagerTest {
     }
 
     @Test
+    public void testCreateWithSameNamePulsar(@Mocked ConnectContext connectContext) {
+        String jobName = "job1";
+        String topicName = "topic1";
+        String serverAddress = "http://127.0.0.1:8080";
+        PulsarRoutineLoadJob pulsarRoutineLoadJob = new PulsarRoutineLoadJob(1L, jobName, "default_cluster", 1L, 1L,
+                serverAddress, topicName);
+
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newConcurrentMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newConcurrentMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        PulsarRoutineLoadJob pulsarRoutineLoadJobWithSameName = new PulsarRoutineLoadJob(1L, jobName, "default_cluster",
+                1L, 1L, serverAddress, topicName);
+        routineLoadJobList.add(pulsarRoutineLoadJobWithSameName);
+        nameToRoutineLoadJob.put(jobName, routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+        try {
+            routineLoadManager.addRoutineLoadJob(pulsarRoutineLoadJob, "db");
+            Assert.fail();
+        } catch (DdlException e) {
+            LOG.info(e.getMessage());
+        }
+    }
+
+    @Test
     public void testCreateWithSameNameOfStoppedJob(@Mocked ConnectContext connectContext,
                                                    @Mocked Catalog catalog,
                                                    @Mocked EditLog editLog) throws DdlException {
@@ -255,6 +401,53 @@ public class RoutineLoadManagerTest {
         Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
         Deencapsulation.setField(routineLoadManager, "idToRoutineLoadJob", idToRoutineLoadJob);
         routineLoadManager.addRoutineLoadJob(kafkaRoutineLoadJob, "db");
+
+        Map<Long, Map<String, List<RoutineLoadJob>>> result =
+                Deencapsulation.getField(routineLoadManager, "dbToNameToRoutineLoadJob");
+        Map<String, RoutineLoadJob> result1 = Deencapsulation.getField(routineLoadManager, "idToRoutineLoadJob");
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals(Long.valueOf(1L), result.keySet().iterator().next());
+        Map<String, List<RoutineLoadJob>> resultNameToRoutineLoadJob = result.get(1L);
+        Assert.assertEquals(jobName, resultNameToRoutineLoadJob.keySet().iterator().next());
+        Assert.assertEquals(2, resultNameToRoutineLoadJob.values().iterator().next().size());
+        Assert.assertEquals(2, result1.values().size());
+    }
+
+    @Test
+    public void testCreateWithSameNameOfStoppedJobPulsar(@Mocked ConnectContext connectContext,
+                                                   @Mocked Catalog catalog,
+                                                   @Mocked EditLog editLog) throws DdlException {
+        String jobName = "job1";
+        String topicName = "topic1";
+        String serverAddress = "http://127.0.0.1:8080";
+        PulsarRoutineLoadJob pulsarRoutineLoadJob = new PulsarRoutineLoadJob(1L, jobName, "default_cluster", 1L, 1L,
+                serverAddress, topicName);
+
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+
+        new Expectations() {
+            {
+                catalog.getEditLog();
+                minTimes = 0;
+                result = editLog;
+            }
+        };
+
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newConcurrentMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newConcurrentMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        PulsarRoutineLoadJob pulsarRoutineLoadJobWithSameName = new PulsarRoutineLoadJob(1L, jobName, "default_cluster",
+                1L, 1L, serverAddress, topicName);
+        Deencapsulation.setField(pulsarRoutineLoadJobWithSameName, "state", RoutineLoadJob.JobState.STOPPED);
+        routineLoadJobList.add(pulsarRoutineLoadJobWithSameName);
+        nameToRoutineLoadJob.put(jobName, routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+        Map<String, RoutineLoadJob> idToRoutineLoadJob = Maps.newConcurrentMap();
+        idToRoutineLoadJob.put(UUID.randomUUID().toString(), pulsarRoutineLoadJobWithSameName);
+
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "idToRoutineLoadJob", idToRoutineLoadJob);
+        routineLoadManager.addRoutineLoadJob(pulsarRoutineLoadJob, "db");
 
         Map<Long, Map<String, List<RoutineLoadJob>>> result =
                 Deencapsulation.getField(routineLoadManager, "dbToNameToRoutineLoadJob");
@@ -528,6 +721,68 @@ public class RoutineLoadManagerTest {
     }
 
     @Test
+    public void testPauseRoutineLoadJobPulsar(@Injectable PauseRoutineLoadStmt pauseRoutineLoadStmt,
+                                        @Mocked Catalog catalog,
+                                        @Mocked Database database,
+                                        @Mocked Auth auth,
+                                        @Mocked ConnectContext connectContext) throws UserException {
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newHashMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        routineLoadJobList.add(routineLoadJob);
+        nameToRoutineLoadJob.put("", routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+
+        Map<Long, RoutineLoadJob> idToRoutineLoadJob = Maps.newConcurrentMap();
+        idToRoutineLoadJob.put(routineLoadJob.getId(), routineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "idToRoutineLoadJob", idToRoutineLoadJob);
+
+        new Expectations() {
+            {
+                pauseRoutineLoadStmt.getDbFullName();
+                minTimes = 0;
+                result = "";
+                pauseRoutineLoadStmt.getName();
+                minTimes = 0;
+                result = "";
+                catalog.getDb("");
+                minTimes = 0;
+                result = database;
+                database.getId();
+                minTimes = 0;
+                result = 1L;
+                catalog.getAuth();
+                minTimes = 0;
+                result = auth;
+                auth.checkTblPriv((ConnectContext) any, anyString, anyString, (PrivPredicate) any);
+                minTimes = 0;
+                result = true;
+            }
+        };
+
+        routineLoadManager.pauseRoutineLoadJob(pauseRoutineLoadStmt);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, routineLoadJob.getState());
+
+        for (int i = 0; i < 3; i++) {
+            Deencapsulation.setField(routineLoadJob, "pauseReason",
+                    new ErrorReason(InternalErrorCode.REPLICA_FEW_ERR, ""));
+            routineLoadManager.updateRoutineLoadJob();
+            Assert.assertEquals(RoutineLoadJob.JobState.NEED_SCHEDULE, routineLoadJob.getState());
+            Deencapsulation.setField(routineLoadJob, "state", RoutineLoadJob.JobState.PAUSED);
+            boolean autoResumeLock = Deencapsulation.getField(routineLoadJob, "autoResumeLock");
+            Assert.assertEquals(autoResumeLock, false);
+        }
+        routineLoadManager.updateRoutineLoadJob();
+        Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, routineLoadJob.getState());
+        boolean autoResumeLock = Deencapsulation.getField(routineLoadJob, "autoResumeLock");
+        Assert.assertEquals(autoResumeLock, true);
+    }
+
+    @Test
     public void testResumeRoutineLoadJob(@Injectable ResumeRoutineLoadStmt resumeRoutineLoadStmt,
                                          @Mocked Catalog catalog,
                                          @Mocked Database database,
@@ -572,6 +827,50 @@ public class RoutineLoadManagerTest {
     }
 
     @Test
+    public void testResumeRoutineLoadJobPulsar(@Injectable ResumeRoutineLoadStmt resumeRoutineLoadStmt,
+                                         @Mocked Catalog catalog,
+                                         @Mocked Database database,
+                                         @Mocked Auth auth,
+                                         @Mocked ConnectContext connectContext) throws UserException {
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newHashMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        routineLoadJobList.add(routineLoadJob);
+        nameToRoutineLoadJob.put("", routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+
+        new Expectations() {
+            {
+                resumeRoutineLoadStmt.getDbFullName();
+                minTimes = 0;
+                result = "";
+                resumeRoutineLoadStmt.getName();
+                minTimes = 0;
+                result = "";
+                catalog.getDb("");
+                minTimes = 0;
+                result = database;
+                database.getId();
+                minTimes = 0;
+                result = 1L;
+                catalog.getAuth();
+                minTimes = 0;
+                result = auth;
+                auth.checkTblPriv((ConnectContext) any, anyString, anyString, (PrivPredicate) any);
+                minTimes = 0;
+                result = true;
+            }
+        };
+
+        routineLoadManager.resumeRoutineLoadJob(resumeRoutineLoadStmt);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.NEED_SCHEDULE, routineLoadJob.getState());
+    }
+
+    @Test
     public void testStopRoutineLoadJob(@Injectable StopRoutineLoadStmt stopRoutineLoadStmt,
                                        @Mocked Catalog catalog,
                                        @Mocked Database database,
@@ -582,6 +881,50 @@ public class RoutineLoadManagerTest {
         Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
         List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
         RoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
+        routineLoadJobList.add(routineLoadJob);
+        nameToRoutineLoadJob.put("", routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+
+        new Expectations() {
+            {
+                stopRoutineLoadStmt.getDbFullName();
+                minTimes = 0;
+                result = "";
+                stopRoutineLoadStmt.getName();
+                minTimes = 0;
+                result = "";
+                catalog.getDb("");
+                minTimes = 0;
+                result = database;
+                database.getId();
+                minTimes = 0;
+                result = 1L;
+                catalog.getAuth();
+                minTimes = 0;
+                result = auth;
+                auth.checkTblPriv((ConnectContext) any, anyString, anyString, (PrivPredicate) any);
+                minTimes = 0;
+                result = true;
+            }
+        };
+
+        routineLoadManager.stopRoutineLoadJob(stopRoutineLoadStmt);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.STOPPED, routineLoadJob.getState());
+    }
+
+    @Test
+    public void testStopRoutineLoadJobPulsar(@Injectable StopRoutineLoadStmt stopRoutineLoadStmt,
+                                       @Mocked Catalog catalog,
+                                       @Mocked Database database,
+                                       @Mocked Auth auth,
+                                       @Mocked ConnectContext connectContext) throws UserException {
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newHashMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
         routineLoadJobList.add(routineLoadJob);
         nameToRoutineLoadJob.put("", routineLoadJobList);
         dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
@@ -719,6 +1062,38 @@ public class RoutineLoadManagerTest {
     }
 
     @Test
+    public void testReplayChangeRoutineLoadJobPulsar(@Injectable RoutineLoadOperation operation) {
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
+        Deencapsulation.setField(routineLoadJob, "name", "");
+        Deencapsulation.setField(routineLoadJob, "dbId", 1L);
+        Map<Long, RoutineLoadJob> idToRoutineLoadJob = Maps.newHashMap();
+        idToRoutineLoadJob.put(1L, routineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "idToRoutineLoadJob", idToRoutineLoadJob);
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newHashMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        routineLoadJobList.add(routineLoadJob);
+        nameToRoutineLoadJob.put("", routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+
+        new Expectations() {
+            {
+                operation.getId();
+                minTimes = 0;
+                result = 1L;
+                operation.getJobState();
+                minTimes = 0;
+                result = RoutineLoadJob.JobState.PAUSED;
+            }
+        };
+
+        routineLoadManager.replayChangeRoutineLoadJob(operation);
+        Assert.assertEquals(RoutineLoadJob.JobState.PAUSED, routineLoadJob.getState());
+    }
+
+    @Test
     public void testAlterRoutineLoadJob(@Injectable StopRoutineLoadStmt stopRoutineLoadStmt,
                                         @Mocked Catalog catalog,
                                         @Mocked Database database,
@@ -729,6 +1104,50 @@ public class RoutineLoadManagerTest {
         Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
         List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
         RoutineLoadJob routineLoadJob = new KafkaRoutineLoadJob();
+        routineLoadJobList.add(routineLoadJob);
+        nameToRoutineLoadJob.put("", routineLoadJobList);
+        dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);
+        Deencapsulation.setField(routineLoadManager, "dbToNameToRoutineLoadJob", dbToNameToRoutineLoadJob);
+
+        new Expectations() {
+            {
+                stopRoutineLoadStmt.getDbFullName();
+                minTimes = 0;
+                result = "";
+                stopRoutineLoadStmt.getName();
+                minTimes = 0;
+                result = "";
+                catalog.getDb("");
+                minTimes = 0;
+                result = database;
+                database.getId();
+                minTimes = 0;
+                result = 1L;
+                catalog.getAuth();
+                minTimes = 0;
+                result = auth;
+                auth.checkTblPriv((ConnectContext) any, anyString, anyString, (PrivPredicate) any);
+                minTimes = 0;
+                result = true;
+            }
+        };
+
+        routineLoadManager.stopRoutineLoadJob(stopRoutineLoadStmt);
+
+        Assert.assertEquals(RoutineLoadJob.JobState.STOPPED, routineLoadJob.getState());
+    }
+
+    @Test
+    public void testAlterRoutineLoadJobPulsar(@Injectable StopRoutineLoadStmt stopRoutineLoadStmt,
+                                        @Mocked Catalog catalog,
+                                        @Mocked Database database,
+                                        @Mocked Auth auth,
+                                        @Mocked ConnectContext connectContext) throws UserException {
+        RoutineLoadManager routineLoadManager = new RoutineLoadManager();
+        Map<Long, Map<String, List<RoutineLoadJob>>> dbToNameToRoutineLoadJob = Maps.newHashMap();
+        Map<String, List<RoutineLoadJob>> nameToRoutineLoadJob = Maps.newHashMap();
+        List<RoutineLoadJob> routineLoadJobList = Lists.newArrayList();
+        RoutineLoadJob routineLoadJob = new PulsarRoutineLoadJob();
         routineLoadJobList.add(routineLoadJob);
         nameToRoutineLoadJob.put("", routineLoadJobList);
         dbToNameToRoutineLoadJob.put(1L, nameToRoutineLoadJob);

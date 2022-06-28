@@ -120,7 +120,7 @@ public class CreateRoutineLoadStmt extends DdlStmt {
     public static final String KAFKA_DEFAULT_OFFSETS = "kafka_default_offsets";
 
     // pulsar type properties
-    public static final String PULSAR_SERVICE_URL = "pulsar_service_url";
+    public static final String PULSAR_SERVICE_URL_PROPERTY = "pulsar_service_url";
     public static final String PULSAR_TOPIC_PROPERTY = "pulsar_topic";
     // optional
     public static final String PULSAR_PARTITIONS_PROPERTY = "pulsar_partitions";
@@ -154,7 +154,7 @@ public class CreateRoutineLoadStmt extends DdlStmt {
             .build();
 
     private static final ImmutableSet<String> PULSAR_PROPERTIES_SET = new ImmutableSet.Builder<String>()
-            .add(PULSAR_SERVICE_URL)
+            .add(PULSAR_SERVICE_URL_PROPERTY)
             .add(PULSAR_TOPIC_PROPERTY)
             .add(PULSAR_PARTITIONS_PROPERTY)
             .add(PULSAR_OFFSETS_PROPERTY)
@@ -548,14 +548,14 @@ public class CreateRoutineLoadStmt extends DdlStmt {
         }
 
         // check server url
-        pulsarServerUrl = Strings.nullToEmpty(dataSourceProperties.get(PULSAR_SERVICE_URL)).replaceAll(" ", "");
+        pulsarServerUrl = Strings.nullToEmpty(dataSourceProperties.get(PULSAR_SERVICE_URL_PROPERTY)).replaceAll(" ", "");
         if (Strings.isNullOrEmpty(pulsarServerUrl)) {
-            throw new AnalysisException(PULSAR_SERVICE_URL + " is a required property");
+            throw new AnalysisException(PULSAR_SERVICE_URL_PROPERTY + " is a required property");
         }
         String[] pulsarServerUrl = this.pulsarServerUrl.split(",");
         for (String url : pulsarServerUrl) {
             if (!Pattern.matches(ENDPOINT_REGEX, url)) {
-                throw new AnalysisException(PULSAR_SERVICE_URL + ":" + url
+                throw new AnalysisException(PULSAR_SERVICE_URL_PROPERTY + ":" + url
                         + " not match pattern " + ENDPOINT_REGEX);
             }
         }

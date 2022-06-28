@@ -299,7 +299,7 @@ public class PulsarRoutineLoadJobTest {
         Map<String, String> customProperties = Maps.newHashMap();
 
         customProperties.put(CreateRoutineLoadStmt.PULSAR_TOPIC_PROPERTY, topicName);
-        customProperties.put(CreateRoutineLoadStmt.PULSAR_SERVICE_URL, serverAddress);
+        customProperties.put(CreateRoutineLoadStmt.PULSAR_SERVICE_URL_PROPERTY, serverAddress);
         customProperties.put(CreateRoutineLoadStmt.PULSAR_PARTITIONS_PROPERTY, pulsarPartitionString);
 
         CreateRoutineLoadStmt createRoutineLoadStmt = new CreateRoutineLoadStmt(labelName, tableNameString,

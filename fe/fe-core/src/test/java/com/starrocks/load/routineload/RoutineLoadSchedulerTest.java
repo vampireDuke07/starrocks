@@ -124,6 +124,77 @@ public class RoutineLoadSchedulerTest {
         }
     }
 
+    @Test
+    public void testNormalRunOneCyclePulsar(@Mocked Catalog catalog,
+                                      @Injectable RoutineLoadManager routineLoadManager,
+                                      @Injectable SystemInfoService systemInfoService,
+                                      @Injectable Database database,
+                                      @Injectable RoutineLoadDesc routineLoadDesc,
+                                      @Mocked StreamLoadPlanner planner,
+                                      @Injectable OlapTable olapTable)
+            throws LoadException, MetaNotFoundException {
+        String clusterName = "default";
+        List<Long> beIds = Lists.newArrayList();
+        beIds.add(1L);
+        beIds.add(2L);
+
+        List<Integer> partitions = Lists.newArrayList();
+        partitions.add(100);
+        partitions.add(200);
+        partitions.add(300);
+
+        RoutineLoadTaskScheduler routineLoadTaskScheduler = new RoutineLoadTaskScheduler(routineLoadManager);
+        Deencapsulation.setField(catalog, "routineLoadTaskScheduler", routineLoadTaskScheduler);
+
+        PulsarRoutineLoadJob pulsarRoutineLoadJob = new PulsarRoutineLoadJob(1L, "test", clusterName, 1L, 1L,
+                "xxx", "test");
+        Deencapsulation.setField(pulsarRoutineLoadJob, "state", RoutineLoadJob.JobState.NEED_SCHEDULE);
+        List<RoutineLoadJob> routineLoadJobList = new ArrayList<>();
+        routineLoadJobList.add(pulsarRoutineLoadJob);
+
+        Deencapsulation.setField(pulsarRoutineLoadJob, "customPulsarPartitions", partitions);
+        Deencapsulation.setField(pulsarRoutineLoadJob, "desireTaskConcurrentNum", 3);
+
+        new Expectations() {
+            {
+                catalog.getRoutineLoadManager();
+                minTimes = 0;
+                result = routineLoadManager;
+                routineLoadManager.getRoutineLoadJobByState(Sets.newHashSet(RoutineLoadJob.JobState.NEED_SCHEDULE));
+                minTimes = 0;
+                result = routineLoadJobList;
+                catalog.getDb(anyLong);
+                minTimes = 0;
+                result = database;
+                database.getTable(1L);
+                minTimes = 0;
+                result = olapTable;
+                systemInfoService.getClusterBackendIds(clusterName, true);
+                minTimes = 0;
+                result = beIds;
+                routineLoadManager.getSizeOfIdToRoutineLoadTask();
+                minTimes = 0;
+                result = 1;
+            }
+        };
+
+        RoutineLoadScheduler routineLoadScheduler = new RoutineLoadScheduler();
+        Deencapsulation.setField(routineLoadScheduler, "routineLoadManager", routineLoadManager);
+        routineLoadScheduler.runAfterCatalogReady();
+
+        List<RoutineLoadTaskInfo> routineLoadTaskInfoList =
+                Deencapsulation.getField(pulsarRoutineLoadJob, "routineLoadTaskInfoList");
+        for (RoutineLoadTaskInfo routineLoadTaskInfo : routineLoadTaskInfoList) {
+            PulsarTaskInfo pulsarTaskInfo = (PulsarTaskInfo) routineLoadTaskInfo;
+            if (pulsarTaskInfo.getPartitions().size() == 2) {
+                Assert.assertTrue(pulsarTaskInfo.getPartitions().contains(100));
+                Assert.assertTrue(pulsarTaskInfo.getPartitions().contains(300));
+            } else {
+                Assert.assertTrue(pulsarTaskInfo.getPartitions().contains(200));
+            }
+        }
+    }
+
     public void functionTest(@Mocked Catalog catalog,
                              @Mocked SystemInfoService systemInfoService,
                              @Injectable Database database) throws DdlException, InterruptedException {

@@ -100,4 +100,64 @@ public class RoutineLoadTaskSchedulerTest {
         Deencapsulation.setField(routineLoadTaskScheduler, "needScheduleTasksQueue", routineLoadTaskInfoQueue);
         routineLoadTaskScheduler.runAfterCatalogReady();
     }
+
+    @Test
+    public void testRunOneCyclePulsar(@Injectable PulsarRoutineLoadJob pulsarRoutineLoadJob1,
+                                @Injectable PulsarRoutineLoadJob routineLoadJob) {
+        long beId = 100L;
+
+        Map<Integer, Long> partitionIdToOffset = Maps.newHashMap();
+        partitionIdToOffset.put(1, 100L);
+        partitionIdToOffset.put(2, 200L);
+        PulsarProgress pulsarProgress = new PulsarProgress();
+        Deencapsulation.setField(pulsarProgress, "partitionIdToOffset", partitionIdToOffset);
+
+        Queue<RoutineLoadTaskInfo> routineLoadTaskInfoQueue = Queues.newLinkedBlockingQueue();
+        PulsarTaskInfo routineLoadTaskInfo1 = new PulsarTaskInfo(new UUID(1, 1), 1l, "default_cluster", 20000,
+                System.currentTimeMillis(), partitionIdToOffset);
+        routineLoadTaskInfoQueue.add(routineLoadTaskInfo1);
+
+        Map<Long, RoutineLoadTaskInfo> idToRoutineLoadTask = Maps.newHashMap();
+        idToRoutineLoadTask.put(1L, routineLoadTaskInfo1);
+
+        Map<String, RoutineLoadJob> idToRoutineLoadJob = Maps.newConcurrentMap();
+        idToRoutineLoadJob.put("1", routineLoadJob);
+
+        Deencapsulation.setField(routineLoadManager, "idToRoutineLoadJob", idToRoutineLoadJob);
+
+        new Expectations() {
+            {
+                Catalog.getCurrentCatalog();
+                minTimes = 0;
+                result = catalog;
+                catalog.getRoutineLoadManager();
+                minTimes = 0;
+                result = routineLoadManager;
+
+                routineLoadManager.getClusterIdleSlotNum();
+                minTimes = 0;
+                result = 1;
+                routineLoadManager.checkTaskInJob((UUID) any);
+                minTimes = 0;
+                result = true;
+
+                pulsarRoutineLoadJob1.getDbId();
+                minTimes = 0;
+                result = 1L;
+                pulsarRoutineLoadJob1.getTableId();
+                minTimes = 0;
+                result = 1L;
+                pulsarRoutineLoadJob1.getName();
+                minTimes = 0;
+                result = "";
+                routineLoadManager.getJob(anyLong);
+                minTimes = 0;
+                result = pulsarRoutineLoadJob1;
+            }
+        };
+
+        RoutineLoadTaskScheduler routineLoadTaskScheduler = new RoutineLoadTaskScheduler();
+        Deencapsulation.setField(routineLoadTaskScheduler, "needScheduleTasksQueue", routineLoadTaskInfoQueue);
+        routineLoadTaskScheduler.runAfterCatalogReady();
+    }
 }
