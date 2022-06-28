@@ -28,7 +28,14 @@ import com.starrocks.catalog.Catalog;
 import com.starrocks.common.Config;
 import com.starrocks.common.LoadException;
 import com.starrocks.common.UserException;
-import com.starrocks.proto.*;
+import com.starrocks.proto.PProxyRequest;
+import com.starrocks.proto.PProxyResult;
+import com.starrocks.proto.PPulsarLoadInfo;
+import com.starrocks.proto.PPulsarMetaProxyRequest;
+import com.starrocks.proto.PPulsarOffsetBatchProxyRequest;
+import com.starrocks.proto.PPulsarOffsetProxyRequest;
+import com.starrocks.proto.PPulsarOffsetProxyResult;
+import com.starrocks.proto.PStringPair;
 import com.starrocks.rpc.BackendServiceProxy;
 import com.starrocks.system.Backend;
 import com.starrocks.thrift.TNetworkAddress;
@@ -70,7 +77,7 @@ public class PulsarUtil {
     }
 
     public static PPulsarLoadInfo genPPulsarLoadInfo(String serverUrl, String topic,
-                                                   ImmutableMap<String, String> properties) {
+                                                     ImmutableMap<String, String> properties) {
         PPulsarLoadInfo pulsarLoadInfo = new PPulsarLoadInfo();
         pulsarLoadInfo.servers = serverUrl;
         pulsarLoadInfo.topic = topic;

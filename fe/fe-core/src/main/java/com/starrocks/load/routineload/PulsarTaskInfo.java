@@ -31,9 +31,14 @@ import com.starrocks.common.Config;
 import com.starrocks.common.MetaNotFoundException;
 import com.starrocks.common.UserException;
 import com.starrocks.common.util.DebugUtil;
-import com.starrocks.common.util.KafkaUtil;
 import com.starrocks.common.util.PulsarUtil;
-import com.starrocks.thrift.*;
+import com.starrocks.thrift.TExecPlanFragmentParams;
+import com.starrocks.thrift.TFileFormatType;
+import com.starrocks.thrift.TLoadSourceType;
+import com.starrocks.thrift.TPlanFragment;
+import com.starrocks.thrift.TPulsarLoadInfo;
+import com.starrocks.thrift.TRoutineLoadTask;
+import com.starrocks.thrift.TUniqueId;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
