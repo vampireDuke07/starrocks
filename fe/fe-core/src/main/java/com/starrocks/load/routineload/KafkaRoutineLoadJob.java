@@ -279,6 +279,7 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     @Override
     protected boolean unprotectNeedReschedule() throws UserException {
         // only running and need_schedule job need to be changed current kafka partitions
+        LOG.info("dev debug info: current customKafkaPartitions: {}", customKafkaPartitions);
         if (this.state == JobState.RUNNING || this.state == JobState.NEED_SCHEDULE) {
             if (customKafkaPartitions != null && customKafkaPartitions.size() != 0) {
                 currentKafkaPartitions = customKafkaPartitions;

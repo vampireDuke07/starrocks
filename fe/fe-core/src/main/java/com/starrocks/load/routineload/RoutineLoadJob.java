@@ -1030,7 +1030,8 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
         if (routineLoadDesc == null) {
             return;
         }
-
+        LOG.info("dev debug info: current RoutineLoadDesc detail: {}", routineLoadDesc.toString());
+        LOG.info("dev debug info: current partitionNames: {}", routineLoadDesc.getPartitionNames());
         PartitionNames partitionNames = routineLoadDesc.getPartitionNames();
         if (partitionNames == null) {
             return;

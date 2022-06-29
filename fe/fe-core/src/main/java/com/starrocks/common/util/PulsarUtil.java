@@ -100,6 +100,7 @@ public class PulsarUtil {
                 throws UserException {
             // create request
             PPulsarMetaProxyRequest metaRequest = new PPulsarMetaProxyRequest();
+            LOG.info("dev debug info: current serverUrl: {}, current topic: {} current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
             metaRequest.pulsarInfo = genPPulsarLoadInfo(serverUrl, topic, convertedCustomProperties);
             PProxyRequest request = new PProxyRequest();
             request.pulsarMetaRequest = metaRequest;

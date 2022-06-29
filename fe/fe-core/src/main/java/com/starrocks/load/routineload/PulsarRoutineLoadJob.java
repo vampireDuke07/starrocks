@@ -279,6 +279,8 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
     @Override
     protected boolean unprotectNeedReschedule() throws UserException {
         // only running and need_schedule job need to be changed current pulsar partitions
+        LOG.info("dev debug info: current job status: {}", this.state);
+        LOG.info("dev debug info: current customKafkaPartitions: {}", customPulsarPartitions);
         if (this.state == JobState.RUNNING || this.state == JobState.NEED_SCHEDULE) {
             if (customPulsarPartitions != null && customPulsarPartitions.size() != 0) {
                 currentPulsarPartitions = customPulsarPartitions;
@@ -357,6 +359,7 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
 
     private List<Integer> getAllPulsarPartitions() throws UserException {
         convertCustomProperties(false);
+        LOG.info("dev debug info: current serverUrl: {}, current topic: {} current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
         return PulsarUtil.getAllPulsarPartitions(serverUrl, topic, ImmutableMap.copyOf(convertedCustomProperties));
     }
 
@@ -382,6 +385,7 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
         PulsarRoutineLoadJob pulsarRoutineLoadJob = new PulsarRoutineLoadJob(id, stmt.getName(),
                 db.getClusterName(), db.getId(), tableId,
                 stmt.getPulsarServerUrl(), stmt.getPulsarTopic());
+        LOG.info("dev debug info: current CustomProperties: {}, current pulsarPartitionOffsets: {}", stmt.getCustomPulsarProperties(), stmt.getPulsarPartitionOffsets());
         pulsarRoutineLoadJob.setOptional(stmt);
         pulsarRoutineLoadJob.checkCustomProperties();
         pulsarRoutineLoadJob.checkCustomPartition();
