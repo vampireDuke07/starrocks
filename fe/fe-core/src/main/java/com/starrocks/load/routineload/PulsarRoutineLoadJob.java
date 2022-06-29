@@ -359,7 +359,8 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
 
     private List<Integer> getAllPulsarPartitions() throws UserException {
         convertCustomProperties(false);
-        LOG.info("dev debug info: current serverUrl: {}, current topic: {} current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
+        LOG.info("dev debug info: current serverUrl: {}, current topic: {} " +
+                "current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
         return PulsarUtil.getAllPulsarPartitions(serverUrl, topic, ImmutableMap.copyOf(convertedCustomProperties));
     }
 
@@ -385,7 +386,8 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
         PulsarRoutineLoadJob pulsarRoutineLoadJob = new PulsarRoutineLoadJob(id, stmt.getName(),
                 db.getClusterName(), db.getId(), tableId,
                 stmt.getPulsarServerUrl(), stmt.getPulsarTopic());
-        LOG.info("dev debug info: current CustomProperties: {}, current pulsarPartitionOffsets: {}", stmt.getCustomPulsarProperties(), stmt.getPulsarPartitionOffsets());
+        LOG.info("dev debug info: current CustomProperties: {}, current pulsarPartitionOffsets: {}",
+                stmt.getCustomPulsarProperties(), stmt.getPulsarPartitionOffsets());
         pulsarRoutineLoadJob.setOptional(stmt);
         pulsarRoutineLoadJob.checkCustomProperties();
         pulsarRoutineLoadJob.checkCustomPartition();

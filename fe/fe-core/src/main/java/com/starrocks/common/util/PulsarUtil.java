@@ -90,7 +90,8 @@ public class PulsarUtil {
             }
             pulsarLoadInfo.properties.add(pair);
         }
-        LOG.info("dev debug info: current servers: {}, current topic: {} current properties: {}", serverUrl, topic, properties);
+        LOG.info("dev debug info: current servers: {}, current topic: {} current properties: {}",
+                serverUrl, topic, properties);
         return pulsarLoadInfo;
     }
 
@@ -100,7 +101,8 @@ public class PulsarUtil {
                 throws UserException {
             // create request
             PPulsarMetaProxyRequest metaRequest = new PPulsarMetaProxyRequest();
-            LOG.info("dev debug info: current serverUrl: {}, current topic: {} current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
+            LOG.info("dev debug info: current serverUrl: {}, current topic: {} " +
+                    "current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
             metaRequest.pulsarInfo = genPPulsarLoadInfo(serverUrl, topic, convertedCustomProperties);
             PProxyRequest request = new PProxyRequest();
             request.pulsarMetaRequest = metaRequest;
