@@ -104,10 +104,16 @@ public class KafkaUtil {
             LOG.info("dev debug info: current serverUrl: {}, current topic: {} " +
                     "current convertedCustomProperties: {}", brokerList, topic, convertedCustomProperties);
             metaRequest.kafkaInfo = genPKafkaLoadInfo(brokerList, topic, convertedCustomProperties);
+            LOG.info("dev debug info: kafkaInfo detail: {}, {}, {}",
+                    metaRequest.kafkaInfo.brokers,
+                    metaRequest.kafkaInfo.topic,
+                    metaRequest.kafkaInfo.properties);
             PProxyRequest request = new PProxyRequest();
             request.kafkaMetaRequest = metaRequest;
 
             PProxyResult result = sendProxyRequest(request);
+            LOG.info("dev debug info: result.kafkaMetaResult.partitionIds : {}",
+                    result.kafkaMetaResult.partitionIds);
             return result.kafkaMetaResult.partitionIds;
         }
 

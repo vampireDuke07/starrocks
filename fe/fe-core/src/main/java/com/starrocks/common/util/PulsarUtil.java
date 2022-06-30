@@ -104,10 +104,16 @@ public class PulsarUtil {
             LOG.info("dev debug info: current serverUrl: {}, current topic: {} " +
                     "current convertedCustomProperties: {}", serverUrl, topic, convertedCustomProperties);
             metaRequest.pulsarInfo = genPPulsarLoadInfo(serverUrl, topic, convertedCustomProperties);
+            LOG.info("dev debug info: pulsarInfo detail: {}, {}, {}",
+                    metaRequest.pulsarInfo.servers,
+                    metaRequest.pulsarInfo.topic,
+                    metaRequest.pulsarInfo.properties);
             PProxyRequest request = new PProxyRequest();
             request.pulsarMetaRequest = metaRequest;
 
             PProxyResult result = sendProxyRequest(request);
+            LOG.info("dev debug info: result.pulsarMetaResult.partitionIds : {}",
+                    result.pulsarMetaResult.partitionIds);
             return result.pulsarMetaResult.partitionIds;
         }
 
