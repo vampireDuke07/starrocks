@@ -90,9 +90,14 @@ import com.starrocks.catalog.Catalog;
 import com.starrocks.common.Config;
 import com.starrocks.common.DdlException;
 import com.starrocks.load.EtlJobType;
+import org.apache.juli.logging.LogFactory;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 public class DdlExecutor {
+    private static final Logger LOG = LogManager.getLogger(DdlExecutor.class);
     public static void execute(Catalog catalog, DdlStmt ddlStmt) throws Exception {
+        LOG.info("dev debug info step 13");
         if (ddlStmt instanceof CreateClusterStmt) {
             CreateClusterStmt stmt = (CreateClusterStmt) ddlStmt;
             catalog.createCluster(stmt);
@@ -139,6 +144,7 @@ public class DdlExecutor {
         } else if (ddlStmt instanceof CancelLoadStmt) {
             catalog.getLoadManager().cancelLoadJob((CancelLoadStmt) ddlStmt);
         } else if (ddlStmt instanceof CreateRoutineLoadStmt) {
+            LOG.info("dev debug info step 13.1");
             catalog.getRoutineLoadManager().createRoutineLoadJob((CreateRoutineLoadStmt) ddlStmt);
         } else if (ddlStmt instanceof PauseRoutineLoadStmt) {
             catalog.getRoutineLoadManager().pauseRoutineLoadJob((PauseRoutineLoadStmt) ddlStmt);

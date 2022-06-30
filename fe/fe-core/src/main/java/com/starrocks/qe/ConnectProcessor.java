@@ -233,6 +233,7 @@ public class ConnectProcessor {
 
     // process COM_QUERY statement,
     private void handleQuery() {
+        LOG.info("dev debug info step 10");
         MetricRepo.COUNTER_REQUEST_ALL.increase(1L);
         // convert statement to Java string
         String originStmt = null;
@@ -285,8 +286,7 @@ public class ConnectProcessor {
                 ctx.setExecutor(executor);
 
                 ctx.setIsLastStmt(i == stmts.size() - 1);
-
-                LOG.info("dev debug info: executor Columns: {}, ResultRows: {}",
+                LOG.info("dev debug info: step 10.1 executor Columns: {}, ResultRows: {}",
                         Arrays.toString(executor.getShowResultSet().getMetaData().getColumns().toArray()),
                         Arrays.toString(executor.getShowResultSet().getResultRows().toArray()));
                 executor.execute();
@@ -417,6 +417,7 @@ public class ConnectProcessor {
     }
 
     private void dispatch() throws IOException {
+        LOG.info("dev debug info step 9");
         int code = packetBuf.get();
         MysqlCommand command = MysqlCommand.fromCode(code);
         if (command == null) {
@@ -652,6 +653,7 @@ public class ConnectProcessor {
 
     // handle one process
     public void processOnce() throws IOException {
+        LOG.info("dev debug info step 8");
         // set status of query to OK.
         ctx.getState().reset();
         executor = null;
@@ -680,8 +682,10 @@ public class ConnectProcessor {
     }
 
     public void loop() {
+        LOG.info("dev debug info step 7");
         while (!ctx.isKilled()) {
             try {
+                LOG.info("dev debug info step 7.1");
                 processOnce();
             } catch (Exception e) {
                 // TODO(zhaochun): something wrong

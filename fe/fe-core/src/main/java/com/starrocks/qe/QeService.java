@@ -56,6 +56,7 @@ public class QeService {
     }
 
     public void start() throws IOException {
+        LOG.info("dev debug info step 2");
         if (!mysqlServer.start()) {
             LOG.error("mysql server start failed");
             System.exit(-1);

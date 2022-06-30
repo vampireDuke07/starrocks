@@ -92,6 +92,7 @@ public class ConnectScheduler {
     // return true, if this connection has been successfully submitted, otherwise return false.
     // Caller should close ConnectContext if return false.
     public boolean submit(ConnectContext context) {
+        LOG.info("dev debug info step 5");
         if (context == null) {
             return false;
         }
@@ -101,6 +102,7 @@ public class ConnectScheduler {
         if (context instanceof NConnectContext) {
             return true;
         }
+        LOG.info("dev debug info step 5.1");
         if (executor.submit(new LoopHandler(context)) == null) {
             LOG.warn("Submit one thread failed.");
             return false;
@@ -170,6 +172,7 @@ public class ConnectScheduler {
 
         @Override
         public void run() {
+            LOG.info("dev debug info step 6");
             try {
                 // Set thread local info
                 context.setThreadLocalInfo();

@@ -60,11 +60,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * PulsarRoutineLoadJob is a kind of RoutineLoadJob which fetch data from pulsar.
@@ -289,6 +285,7 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
                 List<Integer> newCurrentPulsarPartition;
                 try {
                     newCurrentPulsarPartition = getAllPulsarPartitions();
+                    LOG.info("dev debug info: pulsar newCurrentPulsarPartition: {}", Arrays.toString(newCurrentPulsarPartition.toArray()));
                 } catch (Exception e) {
                     String msg = "Job failed to fetch all current partition with error [" + e.getMessage() + "]";
                     LOG.warn(new LogBuilder(LogKey.ROUTINE_LOAD_JOB, id)
@@ -365,6 +362,7 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
     }
 
     public static PulsarRoutineLoadJob fromCreateStmt(CreateRoutineLoadStmt stmt) throws UserException {
+        LOG.info("dev debug info step 16");
         // check db and table
         Database db = Catalog.getCurrentCatalog().getDb(stmt.getDBName());
         if (db == null) {
@@ -396,10 +394,12 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
     }
 
     private void checkCustomPartition() throws UserException {
+        LOG.info("dev debug info step 17");
         if (customPulsarPartitions.isEmpty()) {
             return;
         }
         List<Integer> allPulsarPartitions = getAllPulsarPartitions();
+        LOG.info("dev debug info: allPulsarPartitions: {}", Arrays.toString(allPulsarPartitions.toArray()));
         for (Integer customPartition : customPulsarPartitions) {
             if (!allPulsarPartitions.contains(customPartition)) {
                 throw new LoadException("there is a custom pulsar partition " + customPartition

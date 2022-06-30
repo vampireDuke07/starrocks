@@ -165,6 +165,7 @@ public class RoutineLoadManager implements Writable {
 
     public void createRoutineLoadJob(CreateRoutineLoadStmt createRoutineLoadStmt)
             throws UserException {
+        LOG.info("dev debug info step 14");
         // check load auth
         if (!Catalog.getCurrentCatalog().getAuth().checkTblPriv(ConnectContext.get(),
                 createRoutineLoadStmt.getDBName(),
@@ -181,9 +182,11 @@ public class RoutineLoadManager implements Writable {
         LoadDataSourceType type = LoadDataSourceType.valueOf(createRoutineLoadStmt.getTypeName());
         switch (type) {
             case KAFKA:
+                LOG.info("dev debug info step 14.1");
                 routineLoadJob = KafkaRoutineLoadJob.fromCreateStmt(createRoutineLoadStmt);
                 break;
             case PULSAR:
+                LOG.info("dev debug info step 14.2");
                 routineLoadJob = PulsarRoutineLoadJob.fromCreateStmt(createRoutineLoadStmt);
                 break;
             default:
