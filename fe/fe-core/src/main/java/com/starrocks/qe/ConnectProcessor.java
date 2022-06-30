@@ -286,9 +286,6 @@ public class ConnectProcessor {
                 ctx.setExecutor(executor);
 
                 ctx.setIsLastStmt(i == stmts.size() - 1);
-                LOG.info("dev debug info: step 10.1 executor Columns: {}, ResultRows: {}",
-                        Arrays.toString(executor.getShowResultSet().getMetaData().getColumns().toArray()),
-                        Arrays.toString(executor.getShowResultSet().getResultRows().toArray()));
                 executor.execute();
 
                 // do not execute following stmt when current stmt failed, this is consistent with mysql server
