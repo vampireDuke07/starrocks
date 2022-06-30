@@ -174,7 +174,7 @@ public class ConnectScheduler {
 
         @Override
         public void run() {
-            LOG.info("dev debug info step 6");
+            LOG.info("dev debug info step f");
             try {
                 // Set thread local info
                 context.setThreadLocalInfo();

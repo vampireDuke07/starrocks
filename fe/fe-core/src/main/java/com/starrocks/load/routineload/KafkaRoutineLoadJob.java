@@ -390,11 +390,12 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
         KafkaRoutineLoadJob kafkaRoutineLoadJob = new KafkaRoutineLoadJob(id, stmt.getName(),
                 db.getClusterName(), db.getId(), tableId,
                 stmt.getKafkaBrokerList(), stmt.getKafkaTopic());
-        LOG.info("dev debug info: current CustomProperties: {}, current kafkaPartitionOffsets: {}",
-                stmt.getCustomKafkaProperties(), stmt.getKafkaPartitionOffsets());
         kafkaRoutineLoadJob.setOptional(stmt);
         kafkaRoutineLoadJob.checkCustomProperties();
         kafkaRoutineLoadJob.checkCustomPartition();
+        LOG.info("dev debug info: current CustomProperties: {}, current kafkaPartitionOffsets: {}",
+                Arrays.toString(kafkaRoutineLoadJob.customProperties.entrySet().toArray()),
+                Arrays.toString(kafkaRoutineLoadJob.customKafkaPartitions.toArray()));
 
         return kafkaRoutineLoadJob;
     }
@@ -448,8 +449,10 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     @Override
     protected void setOptional(CreateRoutineLoadStmt stmt) throws UserException {
         super.setOptional(stmt);
-
+        LOG.info("dev debug info step 16");
         if (!stmt.getKafkaPartitionOffsets().isEmpty()) {
+            LOG.info("dev debug info: stmt.getKafkaPartitionOffsets: {}",
+                    Arrays.toString(stmt.getKafkaPartitionOffsets().toArray()));
             setCustomKafkaPartitions(stmt.getKafkaPartitionOffsets());
         }
         if (!stmt.getCustomKafkaProperties().isEmpty()) {

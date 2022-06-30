@@ -119,7 +119,6 @@ public class StarRocksFE {
             FeServer feServer = new FeServer(Config.rpc_port);
             HttpServer httpServer = new HttpServer(Config.http_port);
             httpServer.setup();
-            LOG.info("dev debug info step 1");
             feServer.start();
             httpServer.start();
             qeService.start();

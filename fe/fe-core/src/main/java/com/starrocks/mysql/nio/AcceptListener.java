@@ -78,6 +78,7 @@ public class AcceptListener implements ChannelListener<AcceptingChannel<StreamCo
                         }
                         context.setStartTime();
                         ConnectProcessor processor = new ConnectProcessor(context);
+                        LOG.info("dev debug info step 2");
                         context.startAcceptQuery(processor);
                     } catch (AfterConnectedException e) {
                         // do not need to print log for this kind of exception.

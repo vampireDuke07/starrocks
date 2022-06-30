@@ -258,7 +258,7 @@ public class StmtExecutor {
     // Exception:
     //  IOException: talk with client failed.
     public void execute() throws Exception {
-        LOG.info("dev debug info step 11");
+        LOG.info("dev debug info step 7");
         long beginTimeInNanoSecond = TimeUtils.getStartTime();
         context.setStmtId(STMT_ID_GENERATOR.incrementAndGet());
 
@@ -443,7 +443,7 @@ public class StmtExecutor {
                     QeProcessorImpl.INSTANCE.unregisterQuery(context.getExecutionId());
                 }
             } else if (parsedStmt instanceof DdlStmt) {
-                LOG.info("dev debug info step 11.1");
+                LOG.info("dev debug info step 8");
                 handleDdlStmt();
             } else if (parsedStmt instanceof ShowStmt) {
                 handleShow();
@@ -924,7 +924,7 @@ public class StmtExecutor {
     }
 
     private void handleDdlStmt() {
-        LOG.info("dev debug info step 12");
+        LOG.info("dev debug info step 9");
         try {
             DdlExecutor.execute(context.getCatalog(), (DdlStmt) parsedStmt);
             context.getState().setOk();
