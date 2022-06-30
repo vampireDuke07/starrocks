@@ -388,7 +388,7 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
                 stmt.getKafkaBrokerList(), stmt.getKafkaTopic());
         LOG.info("dev debug info: current CustomProperties: {}, current kafkaPartitionOffsets: {}",
                 stmt.getCustomKafkaProperties(), stmt.getKafkaPartitionOffsets());
-                kafkaRoutineLoadJob.setOptional(stmt);
+        kafkaRoutineLoadJob.setOptional(stmt);
         kafkaRoutineLoadJob.checkCustomProperties();
         kafkaRoutineLoadJob.checkCustomPartition();
 
