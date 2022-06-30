@@ -90,6 +90,8 @@ public class KafkaUtil {
             }
             kafkaLoadInfo.properties.add(pair);
         }
+        LOG.info("dev debug info: current servers: {}, current topic: {} current properties: {}",
+                brokerList, topic, properties);
         return kafkaLoadInfo;
     }
 
@@ -99,6 +101,8 @@ public class KafkaUtil {
                 throws UserException {
             // create request
             PKafkaMetaProxyRequest metaRequest = new PKafkaMetaProxyRequest();
+            LOG.info("dev debug info: current serverUrl: {}, current topic: {} " +
+                    "current convertedCustomProperties: {}", brokerList, topic, convertedCustomProperties);
             metaRequest.kafkaInfo = genPKafkaLoadInfo(brokerList, topic, convertedCustomProperties);
             PProxyRequest request = new PProxyRequest();
             request.kafkaMetaRequest = metaRequest;

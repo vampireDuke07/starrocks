@@ -280,7 +280,7 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
     protected boolean unprotectNeedReschedule() throws UserException {
         // only running and need_schedule job need to be changed current pulsar partitions
         LOG.info("dev debug info: current job status: {}", this.state);
-        LOG.info("dev debug info: current customKafkaPartitions: {}", customPulsarPartitions);
+        LOG.info("dev debug info: current customPulsarPartitions: {}", customPulsarPartitions);
         if (this.state == JobState.RUNNING || this.state == JobState.NEED_SCHEDULE) {
             if (customPulsarPartitions != null && customPulsarPartitions.size() != 0) {
                 currentPulsarPartitions = customPulsarPartitions;

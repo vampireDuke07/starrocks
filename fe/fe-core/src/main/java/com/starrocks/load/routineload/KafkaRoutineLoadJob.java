@@ -279,7 +279,8 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     @Override
     protected boolean unprotectNeedReschedule() throws UserException {
         // only running and need_schedule job need to be changed current kafka partitions
-        LOG.info("dev debug info: current customKafkaPartitions: {}", customKafkaPartitions);
+        LOG.info("dev debug info: current job status: {}", this.state);
+        LOG.info("dev debug info: current customPulsarPartitions: {}", customKafkaPartitions);
         if (this.state == JobState.RUNNING || this.state == JobState.NEED_SCHEDULE) {
             if (customKafkaPartitions != null && customKafkaPartitions.size() != 0) {
                 currentKafkaPartitions = customKafkaPartitions;
@@ -358,6 +359,8 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
 
     private List<Integer> getAllKafkaPartitions() throws UserException {
         convertCustomProperties(false);
+        LOG.info("dev debug info: current serverUrl: {}, current topic: {} " +
+                "current convertedCustomProperties: {}", brokerList, topic, convertedCustomProperties);
         return KafkaUtil.getAllKafkaPartitions(brokerList, topic, ImmutableMap.copyOf(convertedCustomProperties));
     }
 
@@ -383,7 +386,9 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
         KafkaRoutineLoadJob kafkaRoutineLoadJob = new KafkaRoutineLoadJob(id, stmt.getName(),
                 db.getClusterName(), db.getId(), tableId,
                 stmt.getKafkaBrokerList(), stmt.getKafkaTopic());
-        kafkaRoutineLoadJob.setOptional(stmt);
+        LOG.info("dev debug info: current CustomProperties: {}, current kafkaPartitionOffsets: {}",
+                stmt.getCustomKafkaProperties(), stmt.getKafkaPartitionOffsets());
+                kafkaRoutineLoadJob.setOptional(stmt);
         kafkaRoutineLoadJob.checkCustomProperties();
         kafkaRoutineLoadJob.checkCustomPartition();
 
