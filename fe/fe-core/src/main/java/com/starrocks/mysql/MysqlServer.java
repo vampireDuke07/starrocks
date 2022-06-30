@@ -116,6 +116,13 @@ public class MysqlServer {
                     ConnectContext context = new ConnectContext(clientChannel);
                     // Set catalog here.
                     context.setCatalog(Catalog.getCurrentCatalog());
+                    LOG.info("dev debug info: RemoteIP: {}, CurrentUserIdentity: {}, ClusterName: {}," +
+                                    "Command: {}, Database: {}",
+                            context.getRemoteIP(),
+                            context.getCurrentUserIdentity(),
+                            context.getClusterName(),
+                            context.getCommand(),
+                            context.getDatabase());
                     if (!scheduler.submit(context)) {
                         LOG.warn("Submit one connect request failed. Client=" + clientChannel.toString());
                         // clear up context

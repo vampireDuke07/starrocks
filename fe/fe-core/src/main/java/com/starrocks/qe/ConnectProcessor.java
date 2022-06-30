@@ -68,6 +68,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousCloseException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -242,6 +243,7 @@ public class ConnectProcessor {
                 ending--;
             }
             originStmt = new String(bytes, 1, ending, "UTF-8");
+            LOG.info("dev debug info: originStmt: {}", originStmt);
         } catch (UnsupportedEncodingException e) {
             // impossible
             LOG.error("UTF8 is not supported in this environment.");
@@ -254,6 +256,7 @@ public class ConnectProcessor {
                 .setClientIp(ctx.getMysqlChannel().getRemoteHostPortString())
                 .setUser(ctx.getQualifiedUser())
                 .setDb(ctx.getDatabase());
+        LOG.info("dev debug info: ctx MysqlCommand.description: {}", ctx.command.toString());
 
         // execute this query.
         StatementBase parsedStmt = null;
@@ -262,6 +265,7 @@ public class ConnectProcessor {
             List<StatementBase> stmts;
             try {
                 stmts = com.starrocks.sql.parser.SqlParser.parse(originStmt, ctx.getSessionVariable().getSqlMode());
+                LOG.info("dev debug info: stmts detail: {}", Arrays.toString(stmts.toArray()));
             } catch (ParsingException parsingException) {
                 throw new AnalysisException(parsingException.getMessage());
             } catch (Exception e) {
@@ -282,6 +286,9 @@ public class ConnectProcessor {
 
                 ctx.setIsLastStmt(i == stmts.size() - 1);
 
+                LOG.info("dev debug info: executor Columns: {}, ResultRows: {}",
+                        Arrays.toString(executor.getShowResultSet().getMetaData().getColumns().toArray()),
+                        Arrays.toString(executor.getShowResultSet().getResultRows().toArray()));
                 executor.execute();
 
                 // do not execute following stmt when current stmt failed, this is consistent with mysql server
