@@ -60,7 +60,12 @@ import org.apache.logging.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * PulsarRoutineLoadJob is a kind of RoutineLoadJob which fetch data from pulsar.
@@ -285,7 +290,8 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
                 List<Integer> newCurrentPulsarPartition;
                 try {
                     newCurrentPulsarPartition = getAllPulsarPartitions();
-                    LOG.info("dev debug info: pulsar newCurrentPulsarPartition: {}", Arrays.toString(newCurrentPulsarPartition.toArray()));
+                    LOG.info("dev debug info: pulsar newCurrentPulsarPartition: {}",
+                            Arrays.toString(newCurrentPulsarPartition.toArray()));
                 } catch (Exception e) {
                     String msg = "Job failed to fetch all current partition with error [" + e.getMessage() + "]";
                     LOG.warn(new LogBuilder(LogKey.ROUTINE_LOAD_JOB, id)

@@ -90,7 +90,6 @@ import com.starrocks.catalog.Catalog;
 import com.starrocks.common.Config;
 import com.starrocks.common.DdlException;
 import com.starrocks.load.EtlJobType;
-import org.apache.juli.logging.LogFactory;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
