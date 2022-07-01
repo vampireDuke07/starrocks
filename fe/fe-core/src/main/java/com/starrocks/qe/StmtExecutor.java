@@ -258,7 +258,7 @@ public class StmtExecutor {
     // Exception:
     //  IOException: talk with client failed.
     public void execute() throws Exception {
-        LOG.info("dev debug info step 7");
+        LOG.info("dev debug info: step 10");
         long beginTimeInNanoSecond = TimeUtils.getStartTime();
         context.setStmtId(STMT_ID_GENERATOR.incrementAndGet());
 
@@ -393,6 +393,7 @@ public class StmtExecutor {
                                 }
                                 explainStringBuilder.append(execPlan.getExplainString(level));
                             }
+                            LOG.info("dev debug info: step 11");
                             handleQueryStmt(execPlan.getFragments(), execPlan.getScanNodes(),
                                     execPlan.getDescTbl().toThrift(),
                                     execPlan.getColNames(), execPlan.getOutputExprs(), explainStringBuilder.toString());
@@ -443,7 +444,7 @@ public class StmtExecutor {
                     QeProcessorImpl.INSTANCE.unregisterQuery(context.getExecutionId());
                 }
             } else if (parsedStmt instanceof DdlStmt) {
-                LOG.info("dev debug info step 8");
+                LOG.info("dev debug info: step 13");
                 handleDdlStmt();
             } else if (parsedStmt instanceof ShowStmt) {
                 handleShow();
@@ -689,7 +690,7 @@ public class StmtExecutor {
         }
 
         coord = new Coordinator(context, fragments, scanNodes, descTable);
-
+        LOG.info("dev debug info: step 12");
         QeProcessorImpl.INSTANCE.registerQuery(context.getExecutionId(),
                 new QeProcessorImpl.QueryInfo(context, originStmt.originStmt, coord));
 
@@ -924,7 +925,7 @@ public class StmtExecutor {
     }
 
     private void handleDdlStmt() {
-        LOG.info("dev debug info step 9");
+        LOG.info("dev debug info: step 14");
         try {
             DdlExecutor.execute(context.getCatalog(), (DdlStmt) parsedStmt);
             context.getState().setOk();

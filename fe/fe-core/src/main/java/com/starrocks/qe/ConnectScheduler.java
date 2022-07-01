@@ -94,17 +94,16 @@ public class ConnectScheduler {
     public boolean submit(ConnectContext context) {
         LOG.info("dev debug info step 5");
         if (context == null) {
-            LOG.info("dev debug info step 5.1");
             return false;
         }
 
         context.setConnectionId(nextConnectionId.getAndAdd(1));
         // no necessary for nio.
         if (context instanceof NConnectContext) {
-            LOG.info("dev debug info step 5.2");
+            LOG.info("dev debug info: step 5");
             return true;
         }
-        LOG.info("dev debug info step 5.3");
+        LOG.info("dev debug info: step 5.1");
         if (executor.submit(new LoopHandler(context)) == null) {
             LOG.warn("Submit one thread failed.");
             return false;
@@ -174,7 +173,6 @@ public class ConnectScheduler {
 
         @Override
         public void run() {
-            LOG.info("dev debug info step f");
             try {
                 // Set thread local info
                 context.setThreadLocalInfo();

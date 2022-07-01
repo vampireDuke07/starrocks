@@ -67,6 +67,7 @@ public class NMysqlServer extends MysqlServer {
     // return true if success, otherwise false
     @Override
     public boolean start() {
+        LOG.info("dev debug info: step 3");
         try {
             server = xnioWorker.createStreamConnectionServer(new InetSocketAddress(port),
                     acceptListener,

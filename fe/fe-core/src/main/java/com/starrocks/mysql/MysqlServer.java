@@ -58,7 +58,6 @@ public class MysqlServer {
     // start MySQL protocol service
     // return true if success, otherwise false
     public boolean start() {
-        LOG.info("dev debug info step c");
         if (scheduler == null) {
             LOG.warn("scheduler is NULL.");
             return false;
@@ -77,7 +76,6 @@ public class MysqlServer {
         // start accept thread
         listener = ThreadPoolManager.newDaemonCacheThreadPool(1, "MySQL-Protocol-Listener", true);
         running = true;
-        LOG.info("dev debug info step c.1");
         listenerFuture = listener.submit(new Listener());
 
         return true;
@@ -107,7 +105,6 @@ public class MysqlServer {
     private class Listener implements Runnable {
         @Override
         public void run() {
-            LOG.info("dev debug info step d");
             while (running && serverChannel.isOpen()) {
                 SocketChannel clientChannel;
                 try {
@@ -119,15 +116,7 @@ public class MysqlServer {
                     ConnectContext context = new ConnectContext(clientChannel);
                     // Set catalog here.
                     context.setCatalog(Catalog.getCurrentCatalog());
-                    LOG.info("dev debug info: RemoteIP: {}, CurrentUserIdentity: {}, ClusterName: {}," +
-                                    "Command: {}, Database: {}",
-                            context.getRemoteIP(),
-                            context.getCurrentUserIdentity(),
-                            context.getClusterName(),
-                            context.getCommand(),
-                            context.getDatabase());
                     if (!scheduler.submit(context)) {
-                        LOG.info("dev debug info step d.1");
                         LOG.warn("Submit one connect request failed. Client=" + clientChannel.toString());
                         // clear up context
                         context.cleanup();

@@ -368,7 +368,6 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     }
 
     public static KafkaRoutineLoadJob fromCreateStmt(CreateRoutineLoadStmt stmt) throws UserException {
-        LOG.info("dev debug info step 15");
         // check db and table
         Database db = Catalog.getCurrentCatalog().getDb(stmt.getDBName());
         if (db == null) {
@@ -401,7 +400,6 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     }
 
     private void checkCustomPartition() throws UserException {
-        LOG.info("dev debug info step 17");
         if (customKafkaPartitions.isEmpty()) {
             return;
         }
@@ -449,7 +447,6 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     @Override
     protected void setOptional(CreateRoutineLoadStmt stmt) throws UserException {
         super.setOptional(stmt);
-        LOG.info("dev debug info step 16");
         if (!stmt.getKafkaPartitionOffsets().isEmpty()) {
             LOG.info("dev debug info: stmt.getKafkaPartitionOffsets: {}",
                     Arrays.toString(stmt.getKafkaPartitionOffsets().toArray()));

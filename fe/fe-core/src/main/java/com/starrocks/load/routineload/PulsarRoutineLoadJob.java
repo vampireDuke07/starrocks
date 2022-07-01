@@ -368,7 +368,6 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
     }
 
     public static PulsarRoutineLoadJob fromCreateStmt(CreateRoutineLoadStmt stmt) throws UserException {
-        LOG.info("dev debug info step 16");
         // check db and table
         Database db = Catalog.getCurrentCatalog().getDb(stmt.getDBName());
         if (db == null) {
@@ -400,7 +399,6 @@ public class PulsarRoutineLoadJob extends RoutineLoadJob {
     }
 
     private void checkCustomPartition() throws UserException {
-        LOG.info("dev debug info step 17");
         if (customPulsarPartitions.isEmpty()) {
             return;
         }

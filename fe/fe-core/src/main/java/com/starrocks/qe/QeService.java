@@ -49,7 +49,7 @@ public class QeService {
         }
         this.port = port;
         if (nioEnabled) {
-            LOG.info("dev debug info step 1");
+            LOG.info("dev debug info: step 1");
             mysqlServer = new NMysqlServer(port, scheduler);
         } else {
             mysqlServer = new MysqlServer(port, scheduler);
@@ -57,7 +57,7 @@ public class QeService {
     }
 
     public void start() throws IOException {
-        LOG.info("dev debug info step b");
+        LOG.info("dev debug info: step 2");
         if (!mysqlServer.start()) {
             LOG.error("mysql server start failed");
             System.exit(-1);
