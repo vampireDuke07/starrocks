@@ -368,6 +368,7 @@ public class KafkaRoutineLoadJob extends RoutineLoadJob {
     }
 
     public static KafkaRoutineLoadJob fromCreateStmt(CreateRoutineLoadStmt stmt) throws UserException {
+        LOG.info("dev debug info: step 16");
         // check db and table
         Database db = Catalog.getCurrentCatalog().getDb(stmt.getDBName());
         if (db == null) {

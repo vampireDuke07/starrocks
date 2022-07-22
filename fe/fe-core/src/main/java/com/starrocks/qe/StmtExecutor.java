@@ -333,6 +333,7 @@ public class StmtExecutor {
                     }
                 }
             } else {
+                LOG.info("check analyze from where");
                 // analyze this query
                 analyze(context.getSessionVariable().toThrift());
             }
